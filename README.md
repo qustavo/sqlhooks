@@ -1,6 +1,8 @@
 # sqlhooks [![Build Status](https://travis-ci.org/gchaincl/sqlhooks.svg)](https://travis-ci.org/gchaincl/sqlhooks) [![Coverage Status](https://coveralls.io/repos/github/gchaincl/sqlhooks/badge.svg?branch=master)](https://coveralls.io/github/gchaincl/sqlhooks?branch=master)
 
-Attach hooks to any database/sql driver
+Attach hooks to any database/sql driver.
+
+The purpose of sqlhooks is to provide anway to instrument your sql statements, making really easy to log queries or measure execution time without modifying your actual code.
 
 # Install
 ```bash
@@ -42,7 +44,7 @@ func main() {
 	}
 
 	// Register the driver
-	// sqlite-hooked is the attached driver, and sqlite3 is where we're attaching to
+	// "sqlite-hooked" is the attached driver, and "sqlite3" is where we're attaching to
 	sqlhooks.Register("sqlite-hooked", sqlhooks.NewDriver("sqlite3", &hooks))
 
 	// Connect to attached driver
