@@ -14,13 +14,13 @@ func TestHooks(t *testing.T) {
 	hooks := Hooks{
 		Query: func(fn QueryFn, query string, args ...interface{}) (driver.Rows, error) {
 			if query != expectedQuery {
-				t.Errorf("query = `%s`, expected `%s`", expectedQuery)
+				t.Errorf("query = `%s`, expected `%s`", query, expectedQuery)
 			}
 			return fn()
 		},
 		Exec: func(fn ExecFn, query string, args ...interface{}) (driver.Result, error) {
 			if query != expectedExec {
-				t.Errorf("query = `%s`, expected `%s`", expectedExec)
+				t.Errorf("query = `%s`, expected `%s`", query, expectedExec)
 			}
 			return fn()
 		},

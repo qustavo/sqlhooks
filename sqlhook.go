@@ -111,7 +111,10 @@ func (c conn) Begin() (driver.Tx, error) {
 	return c.Conn.Begin()
 }
 
+// ExecFn represent the Exec driver function
 type ExecFn func() (driver.Result, error)
+
+// QueryFn represent the Query driver function
 type QueryFn func() (driver.Rows, error)
 
 // Hooks contains hook functions for instrumenting Query and Exec
