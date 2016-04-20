@@ -1,5 +1,6 @@
-# sqlhooks [![Build Status](https://travis-ci.org/gchaincl/sqlhooks.svg)](https://travis-ci.org/gchaincl/sqlhooks) [![Coverage Status](https://coveralls.io/repos/gchaincl/sqlhooks/badge.svg?branch=coveralls&service=github)](https://coveralls.io/github/gchaincl/sqlhooks?branch=coveralls)
-Attach hooks any database/sql driver
+# sqlhooks [![Build Status](https://travis-ci.org/gchaincl/sqlhooks.svg)](https://travis-ci.org/gchaincl/sqlhooks) [![Coverage Status](https://coveralls.io/repos/github/gchaincl/sqlhooks/badge.svg?branch=master)](https://coveralls.io/github/gchaincl/sqlhooks?branch=master)
+
+Attach hooks to any database/sql driver
 
 # Install
 ```bash
