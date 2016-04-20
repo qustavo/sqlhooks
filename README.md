@@ -10,6 +10,17 @@ go get github.com/gchaincl/sqlhooks
 ```go
 package main
 
+import (
+	"database/sql"
+	"database/sql/driver"
+	"log"
+	"time"
+
+	"github.com/gchaincl/sqlhooks"
+	_ "github.com/mattn/go-sqlite3"
+)
+
+
 func main() {
   // Define your hooks
   hooks := sqlhooks.Hooks{
