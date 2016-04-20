@@ -2,6 +2,8 @@ package sqlhook
 
 import (
 	"database/sql"
+	"database/sql/driver"
+	"sort"
 	"testing"
 )
 
@@ -10,17 +12,17 @@ func TestHooks(t *testing.T) {
 	expectedQuery := "SELECT|t|f1|"
 
 	hooks := Hooks{
-		Query: func(query string, args ...interface{}) error {
+		Query: func(fn QueryFn, query string, args ...interface{}) (driver.Rows, error) {
 			if query != expectedQuery {
 				t.Errorf("query = `%s`, expected `%s`", expectedQuery)
 			}
-			return nil
+			return fn()
 		},
-		Exec: func(query string, args ...interface{}) error {
+		Exec: func(fn ExecFn, query string, args ...interface{}) (driver.Result, error) {
 			if query != expectedExec {
 				t.Errorf("query = `%s`, expected `%s`", expectedExec)
 			}
-			return nil
+			return fn()
 		},
 	}
 	Register("test_1", NewDriver("test", &hooks))
@@ -46,5 +48,34 @@ func TestEmptyHooks(t *testing.T) {
 
 	if _, err := db.Query("SELECT|t|f1|"); err != nil {
 		t.Fatalf("Query: %v\n", err)
+	}
+}
+
+func TestCreateInsertAndSelect(t *testing.T) {
+	Register("test_3", NewDriver("test", &Hooks{}))
+	db, _ := sql.Open("test_3", "d3")
+
+	db.Exec("CREATE|t|f1=string")
+	db.Exec("INSERT|t|f1=?", "a")
+	db.Exec("INSERT|t|f1=?", "b")
+	db.Exec("INSERT|t|f1=?", "c")
+
+	rows, _ := db.Query("SELECT|t|f1|")
+	var fs []string
+	for rows.Next() {
+		var f string
+		rows.Scan(&f)
+		fs = append(fs, f)
+	}
+	sort.Strings(fs)
+	if len(fs) != 3 {
+		t.Fatalf("Expected 3 rows, got: %d", len(fs))
+	}
+
+	for i, e := range []string{"a", "b", "c"}[:len(fs)] {
+		f := fs[i]
+		if f != e {
+			t.Errorf("f1 = `%s`, expected: `%s`", f, e)
+		}
 	}
 }
