@@ -1,3 +1,56 @@
+/*
+Package sqlhooks Attach hooks to any database/sql driver.
+
+The purpose of sqlhooks is to provide anway to instrument your sql statements,
+making really easy to log queries or measure execution time without modifying your actual code.
+
+Example:
+	package main
+
+	import (
+		"database/sql"
+		"database/sql/driver"
+		"log"
+		"time"
+
+		"github.com/gchaincl/sqlhooks"
+		_ "github.com/mattn/go-sqlite3"
+	)
+
+
+	func main() {
+		// Define your hooks
+		hooks := sqlhooks.Hooks{
+			Query: func(fn sqlhooks.QueryFn, query string, args ...interface{}) (driver.Rows, error) {
+				defer func(t time.Time) {
+					log.Printf("query: %s, args: %v, took: %s\n", query, args, time.Since(t))
+				}(time.Now())
+
+				return fn()
+			},
+			Exec: func(fn sqlhooks.ExecFn, query string, args ...interface{}) (driver.Result, error) {
+				defer func(t time.Time) {
+					log.Printf("exec: %s, args: %v, took: %s\n", query, args, time.Since(t))
+				}(time.Now())
+
+				return fn()
+			},
+		}
+
+		// Register the driver
+		// "sqlite-hooked" is the attached driver, and "sqlite3" is where we're attaching to
+		sqlhooks.Register("sqlite-hooked", sqlhooks.NewDriver("sqlite3", &hooks))
+
+		// Connect to attached driver
+		db, _ := sql.Open("sqlite-hooked", ":memory:")
+
+		// Do you're stuff
+		db.Exec("CREATE TABLE t (id INTEGER, text VARCHAR(16))")
+		db.Exec("INSERT into t (text) VALUES(?), (?))", "foo", "bar")
+		db.Query("SELECT id, text FROM t")
+	}
+
+*/
 package sqlhooks
 
 import (
