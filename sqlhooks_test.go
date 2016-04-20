@@ -1,4 +1,4 @@
-package sqlhook
+package sqlhooks
 
 import (
 	"database/sql"

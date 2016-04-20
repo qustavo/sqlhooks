@@ -12,15 +12,15 @@ package main
 
 func main() {
   // Define your hooks
-  hooks := sqlhook.Hooks{
-		Query: func(fn sqlhook.QueryFn, query string, args ...interface{}) (driver.Rows, error) {
+  hooks := sqlhooks.Hooks{
+		Query: func(fn sqlhooks.QueryFn, query string, args ...interface{}) (driver.Rows, error) {
 			defer func(t time.Time) {
 				log.Printf("query: %s, args: %v, took: %s\n", query, args, time.Since(t))
 			}(time.Now())
 
 			return fn()
 		},
-		Exec: func(fn sqlhook.ExecFn, query string, args ...interface{}) (driver.Result, error) {
+		Exec: func(fn sqlhooks.ExecFn, query string, args ...interface{}) (driver.Result, error) {
 			defer func(t time.Time) {
 				log.Printf("exec: %s, args: %v, took: %s\n", query, args, time.Since(t))
 			}(time.Now())
@@ -31,7 +31,7 @@ func main() {
 
 	// Register the driver
 	// sqlite-hooked is the attached driver, and sqlite3 is where we're attaching to
-	sqlhook.Register("sqlite-hooked", sqlhook.NewDriver("sqlite3", &hooks))
+	sqlhooks.Register("sqlite-hooked", sqlhooks.NewDriver("sqlite3", &hooks))
 
 	// Connect to attached driver
 	db, _ := sql.Open("sqlite-hooked", ":memory:")
@@ -43,7 +43,7 @@ func main() {
 }
 ```
 
-sqlhook will intercept Query and Exec functions and instead run your hooks, output will look like:
+sqlhooks will intercept Query and Exec functions and instead run your hooks, output will look like:
 ```
 2000/01/01 00:01:02 exec: CREATE TABLE t (id INTEGER, text VARCHAR(16)), args: [], took: 226.169µs
 2000/01/01 00:01:02 exec: INSERT into t (text) VALUES(?), (?)), args: [foo bar], took: 26.822µs
