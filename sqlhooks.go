@@ -18,18 +18,19 @@ Example:
 
 
 	func main() {
-		// Define your hooks
 		hooks := sqlhooks.Hooks{
+			Exec: func(query string, args ...interface{}) func() {
+				log.Printf("[exec] %s, args: %v", query, args)
+				return nil
+			},
 			Query: func(query string, args ...interface{}) func() {
 				t := time.Now()
+				id := t.Nanosecond()
+				log.Printf("[query#%d] %s, args: %v", id, query, args)
+
+				// This will be executed when Query statements has completed
 				return func() {
-					log.Printf("query: %s, args: %v, took: %s\n", query, args, time.Since(t))
-				}
-			},
-			Exec: func(query string, args ...interface{}) func() {
-				t := time.Now()
-				return func() {
-					log.Printf("exec: %s, args: %v, took: %s\n", query, args, time.Since(t))
+					log.Printf("[query#%d] took: %s\n", id, time.Since(t))
 				}
 			},
 		}

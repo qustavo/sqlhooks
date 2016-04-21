@@ -22,21 +22,21 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-
 func main() {
 	// Define your hooks
 	// They will print execution time
 	hooks := sqlhooks.Hooks{
+		Exec: func(query string, args ...interface{}) func() {
+			log.Printf("[exec] %s, args: %v", query, args)
+			return nil
+		},
 		Query: func(query string, args ...interface{}) func() {
 			t := time.Now()
+			id := t.Nanosecond()
+			log.Printf("[query#%d] %s, args: %v", id, query, args)
+				// This will be executed when Query statements has completed
 			return func() {
-				log.Printf("query: %s, args: %v, took: %s\n", query, args, time.Since(t))
-			}
-		},
-		Exec: func(query string, args ...interface{}) func() {
-			t := time.Now()
-			return func() {
-				log.Printf("exec: %s, args: %v, took: %s\n", query, args, time.Since(t))
+				log.Printf("[query#%d] took: %s\n", id, time.Since(t))
 			}
 		},
 	}
@@ -57,8 +57,9 @@ func main() {
 
 sqlhooks will intercept Query and Exec functions and instead run your hooks, output will look like:
 ```
-2000/01/01 00:01:02 exec: CREATE TABLE t (id INTEGER, text VARCHAR(16)), args: [], took: 226.169µs
-2000/01/01 00:01:02 exec: INSERT into t (text) VALUES(?), (?)), args: [foo bar], took: 26.822µs
-2000/01/01 00:01:02 query: SELECT id, text FROM t, args: [], took: 20.229µs
+2016/04/21 18:18:06 [exec] CREATE TABLE t (id INTEGER, text VARCHAR(16)), args: []
+2016/04/21 18:18:06 [exec] INSERT into t (text) VALUES(?), (?)), args: [foo bar]
+2016/04/21 18:18:06 [query#912806039] SELECT id, text FROM t, args: []
+2016/04/21 18:18:06 [query#912806039] took: 32.425µs
 ```
 
