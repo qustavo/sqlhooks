@@ -2,7 +2,6 @@ package sqlhooks
 
 import (
 	"database/sql"
-	"database/sql/driver"
 	"sort"
 	"testing"
 )
@@ -12,17 +11,17 @@ func TestHooks(t *testing.T) {
 	expectedQuery := "SELECT|t|f1|"
 
 	hooks := Hooks{
-		Query: func(fn QueryFn, query string, args ...interface{}) (driver.Rows, error) {
+		Query: func(query string, args ...interface{}) func() {
 			if query != expectedQuery {
 				t.Errorf("query = `%s`, expected `%s`", query, expectedQuery)
 			}
-			return fn()
+			return nil
 		},
-		Exec: func(fn ExecFn, query string, args ...interface{}) (driver.Result, error) {
+		Exec: func(query string, args ...interface{}) func() {
 			if query != expectedExec {
 				t.Errorf("query = `%s`, expected `%s`", query, expectedExec)
 			}
-			return fn()
+			return nil
 		},
 	}
 	Register("test_1", NewDriver("test", &hooks))

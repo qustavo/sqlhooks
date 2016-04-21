@@ -76,18 +76,15 @@ func (s stmt) Close() error {
 	return s.Stmt.Close()
 }
 
-func (s stmt) Exec(args []driver.Value) (driver.Result, error) {
-	if s.hooks.Exec == nil {
-		return s.Stmt.Exec(args)
+func (s stmt) Exec(args []driver.Value) (res driver.Result, err error) {
+	if hook := s.hooks.Exec; hook != nil {
+		fn := hook(s.query, convertArgs(args)...)
+		if fn != nil {
+			defer fn()
+		}
 	}
 
-	return s.hooks.Exec(
-		func() (driver.Result, error) {
-			return s.Stmt.Exec(args)
-		},
-		s.query,
-		convertArgs(args)...,
-	)
+	return s.Stmt.Exec(args)
 }
 
 func (s stmt) NumInput() int {
@@ -95,17 +92,14 @@ func (s stmt) NumInput() int {
 }
 
 func (s stmt) Query(args []driver.Value) (driver.Rows, error) {
-	if s.hooks.Query == nil {
-		return s.Stmt.Query(args)
+	if hook := s.hooks.Query; hook != nil {
+		fn := hook(s.query, convertArgs(args)...)
+		if fn != nil {
+			defer fn()
+		}
 	}
 
-	return s.hooks.Query(
-		func() (driver.Rows, error) {
-			return s.Stmt.Query(args)
-		},
-		s.query,
-		convertArgs(args)...,
-	)
+	return s.Stmt.Query(args)
 }
 
 type conn struct {
@@ -115,17 +109,14 @@ type conn struct {
 
 func (c conn) Query(query string, args []driver.Value) (driver.Rows, error) {
 	if queryer, ok := c.Conn.(driver.Queryer); ok {
-		if c.hooks.Query == nil {
-			return queryer.Query(query, args)
+		if hook := c.hooks.Query; hook != nil {
+			fn := hook(query, convertArgs(args)...)
+			if fn != nil {
+				defer fn()
+			}
 		}
 
-		return c.hooks.Query(
-			func() (driver.Rows, error) {
-				return queryer.Query(query, args)
-			},
-			query,
-			convertArgs(args)...,
-		)
+		return queryer.Query(query, args)
 	}
 
 	// Not implemented by underlying driver
@@ -134,17 +125,14 @@ func (c conn) Query(query string, args []driver.Value) (driver.Rows, error) {
 
 func (c conn) Exec(query string, args []driver.Value) (driver.Result, error) {
 	if execer, ok := c.Conn.(driver.Execer); ok {
-		if c.hooks.Exec == nil {
-			return execer.Exec(query, args)
+		if hook := c.hooks.Exec; hook != nil {
+			fn := hook(query, convertArgs(args)...)
+			if fn != nil {
+				defer fn()
+			}
 		}
 
-		return c.hooks.Exec(
-			func() (driver.Result, error) {
-				return execer.Exec(query, args)
-			},
-			query,
-			convertArgs(args)...,
-		)
+		return execer.Exec(query, args)
 	}
 
 	// Not implemented by underlying driver
@@ -164,16 +152,10 @@ func (c conn) Begin() (driver.Tx, error) {
 	return c.Conn.Begin()
 }
 
-// ExecFn represent the Exec driver function
-type ExecFn func() (driver.Result, error)
-
-// QueryFn represent the Query driver function
-type QueryFn func() (driver.Rows, error)
-
 // Hooks contains hook functions for instrumenting Query and Exec
 type Hooks struct {
-	Exec  func(ExecFn, string, ...interface{}) (driver.Result, error)
-	Query func(QueryFn, string, ...interface{}) (driver.Rows, error)
+	Exec  func(string, ...interface{}) func()
+	Query func(string, ...interface{}) func()
 }
 
 // Driver it's a proxy for a specific sql driver

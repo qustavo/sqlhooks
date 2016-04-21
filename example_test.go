@@ -2,7 +2,6 @@ package sqlhooks
 
 import (
 	"database/sql"
-	"database/sql/driver"
 	"log"
 	"time"
 )
@@ -10,23 +9,19 @@ import (
 func ExampleNewDriver() {
 	hooks := Hooks{
 		// This hook will log the query
-		Query: func(fn QueryFn, query string, args ...interface{}) (driver.Rows, error) {
+		Query: func(query string, args ...interface{}) func() {
 			// Log the query
 			log.Println("Query: ", query)
 
-			// Run Query
-			r, err := fn()
-
 			// Query is done
-			log.Println("Query done!")
-			return r, err
+			return func() { log.Println("Query done!") }
 		},
 		// This hook will measure exec time
-		Exec: func(fn ExecFn, query string, args ...interface{}) (driver.Result, error) {
+		Exec: func(query string, args ...interface{}) func() {
 			t := time.Now()
-			r, err := fn()
-			log.Println("Exec took: %s\n", time.Since(t))
-			return r, err
+			return func() {
+				log.Println("Exec took: %s\n", time.Since(t))
+			}
 		},
 	}
 
