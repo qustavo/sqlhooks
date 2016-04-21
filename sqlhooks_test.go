@@ -78,3 +78,51 @@ func TestCreateInsertAndSelect(t *testing.T) {
 		}
 	}
 }
+
+func TestCancelationsAreExecuted(t *testing.T) {
+	var executed bool
+
+	exec := func() {
+		executed = true
+	}
+	hooks := Hooks{
+		Exec:  func(string, ...interface{}) func() { return exec },
+		Query: func(string, ...interface{}) func() { return exec },
+	}
+
+	Register("test_4", NewDriver("test", &hooks))
+
+	db, _ := sql.Open("test_4", "d4")
+
+	executed = false
+	db.Exec("CREATE|t1|f1=string")
+	if executed == false {
+		t.Error("Exec hook wasn't executed")
+	}
+
+	executed = false
+	db.Query("SELECT|t1|f1|")
+	if executed == false {
+		t.Error("Query hook wasn't executed")
+	}
+
+	executed = false
+	stmt, err := db.Prepare("CREATE|t2|f1=string")
+	if err != nil {
+		t.Fatalf("Prepare: %v\n", err)
+	}
+	stmt.Exec()
+	if executed == false {
+		t.Error("Prepared Exec Hook wasn't executed")
+	}
+
+	executed = false
+	stmt, err = db.Prepare("SELECT|t2|f1|")
+	if err != nil {
+		t.Fatalf("Prepare: %v\n", err)
+	}
+	stmt.Query()
+	if executed == false {
+		t.Error("Prepared Exec Hook wasn't executed")
+	}
+}

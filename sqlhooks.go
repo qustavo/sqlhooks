@@ -153,6 +153,7 @@ func (c conn) Begin() (driver.Tx, error) {
 }
 
 // Hooks contains hook functions for instrumenting Query and Exec
+// Returned func() will be executed after statements have completed
 type Hooks struct {
 	Exec  func(string, ...interface{}) func()
 	Query func(string, ...interface{}) func()
