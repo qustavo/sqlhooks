@@ -15,7 +15,6 @@ package main
 
 import (
 	"database/sql"
-	"database/sql/driver"
 	"log"
 	"time"
 
@@ -25,21 +24,20 @@ import (
 
 
 func main() {
-  // Define your hooks
-  hooks := sqlhooks.Hooks{
-		Query: func(fn sqlhooks.QueryFn, query string, args ...interface{}) (driver.Rows, error) {
-			defer func(t time.Time) {
+	// Define your hooks
+	// They will print execution time
+	hooks := sqlhooks.Hooks{
+		Query: func(query string, args ...interface{}) func() {
+			t := time.Now()
+			return func() {
 				log.Printf("query: %s, args: %v, took: %s\n", query, args, time.Since(t))
-			}(time.Now())
-
-			return fn()
+			}
 		},
-		Exec: func(fn sqlhooks.ExecFn, query string, args ...interface{}) (driver.Result, error) {
-			defer func(t time.Time) {
+		Exec: func(query string, args ...interface{}) func() {
+			t := time.Now()
+			return func() {
 				log.Printf("exec: %s, args: %v, took: %s\n", query, args, time.Since(t))
-			}(time.Now())
-
-			return fn()
+			}
 		},
 	}
 
