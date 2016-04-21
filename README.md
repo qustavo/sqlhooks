@@ -63,3 +63,7 @@ sqlhooks will intercept Query and Exec functions and instead run your hooks, out
 2016/04/21 18:18:06 [query#912806039] took: 32.425µs
 ```
 
+# TODO
+- [ ] `Hooks{}` should be an interface instead of a struct
+- [ ] Exec and Query hooks should return `(func(), error)`
+- [ ] Arguments should be pointers so queries can be modified
