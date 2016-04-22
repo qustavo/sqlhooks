@@ -2,7 +2,9 @@
 
 Attach hooks to any database/sql driver.
 
-The purpose of sqlhooks is to provide anway to instrument your sql statements, making really easy to log queries or measure execution time without modifying your actual code.
+The purpose of sqlhooks is to provide a way to instrument your sql statements, making really easy to log queries or measure execution time without modifying your actual code.
+
+sqlhook is registered as a `database/sql` so you the only thing you need to change in your code is `sql.Open()` driverName with which you specified in `Register()` function (see examples).
 
 # Install
 ```bash
