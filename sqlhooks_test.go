@@ -50,6 +50,8 @@ func TestHooks(t *testing.T) {
 		{"query", "SELECT|t|f1|", []interface{}{}},
 		{"stmt.query", "SELECT|t|f1|", nil},
 		{"stmt.exec", "INSERT|t|f1=?", []interface{}{"x"}},
+		{"tx.query", "SELECT|t|f1|", nil},
+		{"tx.exec", "INSERT|t|f1=?", []interface{}{"x"}},
 	}
 
 	for _, test := range tests {
@@ -104,6 +106,28 @@ func TestHooks(t *testing.T) {
 				if _, err := stmt.Exec(test.args...); err != nil {
 					t.Errorf("prepared exec: %v", err)
 				}
+			}
+		case "tx.query":
+			tx, err := db.Begin()
+			if err != nil {
+				t.Errorf("[%s] begin: %v", test.op, err)
+			}
+			if _, err := tx.Query(test.query, test.args...); err != nil {
+				t.Errorf("[%s] query: %v", test.op, err)
+			}
+			if err := tx.Commit(); err != nil {
+				t.Errorf("[%s] commit: %v", test.op, err)
+			}
+		case "tx.exec":
+			tx, err := db.Begin()
+			if err != nil {
+				t.Errorf("[%s] begin: %v", test.op, err)
+			}
+			if _, err := tx.Exec(test.query, test.args...); err != nil {
+				t.Errorf("[%s] exec: %v", test.op, err)
+			}
+			if err := tx.Commit(); err != nil {
+				t.Errorf("[%s] commit: %v", test.op, err)
 			}
 		}
 
