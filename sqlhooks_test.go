@@ -2,46 +2,122 @@ package sqlhooks
 
 import (
 	"database/sql"
+	"fmt"
 	"sort"
 	"testing"
+	"time"
 )
 
-func TestHooks(t *testing.T) {
-	expectedExec := "CREATE|t|f1=string"
-	expectedQuery := "SELECT|t|f1|"
+func openDBWithHooks(t *testing.T, hooks *Hooks) *sql.DB {
+	// First, we connect directly using `test` driver
+	if db, err := sql.Open("test", "db"); err != nil {
+		t.Fatalf("sql.Open: %v", err)
+		return nil
+	} else {
+		if _, err := db.Exec("WIPE"); err != nil {
+			t.Fatalf("WIPE: %v", err)
+			return nil
+		}
 
-	hooks := Hooks{
-		Query: func(query string, args ...interface{}) func() {
-			if query != expectedQuery {
-				t.Errorf("query = `%s`, expected `%s`", query, expectedQuery)
-			}
+		if _, err := db.Exec("CREATE|t|f1=string,f2=string"); err != nil {
+			t.Fatalf("CREATE: %v", err)
 			return nil
-		},
-		Exec: func(query string, args ...interface{}) func() {
-			if query != expectedExec {
-				t.Errorf("query = `%s`, expected `%s`", query, expectedExec)
-			}
-			return nil
-		},
+		}
 	}
-	Register("test_1", NewDriver("test", &hooks))
 
-	db, _ := sql.Open("test_1", "d1")
-	db.Exec(expectedExec)
-	db.Query(expectedQuery)
+	// Now, return a db handler using hooked driver
+	driver := NewDriver("test", hooks)
+	driverName := fmt.Sprintf("test-%d", time.Now().UnixNano())
+	Register(driverName, driver)
 
-	execStmt, _ := db.Prepare(expectedExec)
-	execStmt.Exec()
+	db, err := sql.Open(driverName, "db")
+	if err != nil {
+		t.Fatalf("sql.Open: %v", err)
+		return nil
+	}
 
-	queryStmt, _ := db.Prepare(expectedQuery)
-	queryStmt.Query()
+	return db
+}
+
+func TestHooks(t *testing.T) {
+	tests := []struct {
+		op    string
+		query string
+		args  []interface{}
+	}{
+		{"exec", "INSERT|t|f1=?,f2=?", []interface{}{"foo", "bar"}},
+		{"query", "SELECT|t|f1|f1=?,f2=?", []interface{}{"foo", "bar"}},
+		{"query", "SELECT|t|f1|", []interface{}{}},
+		{"stmt.query", "SELECT|t|f1|", nil},
+		{"stmt.exec", "INSERT|t|f1=?", []interface{}{"x"}},
+	}
+
+	for _, test := range tests {
+		done := false
+		assert := func(query string, args ...interface{}) func() {
+			// Query Assertions
+			if query != test.query {
+				t.Errorf("query = `%s`, expected `%s`", query, test.query)
+			}
+
+			if test.args == nil {
+				test.args = []interface{}{}
+			}
+
+			// Arguments assertions
+			if len(args) != len(test.args) {
+				t.Errorf("Expected args: %d, got %d", len(test.args), len(args))
+			}
+			for i, _ := range test.args {
+				if args[i] != test.args[i] {
+					t.Errorf("arg[%d] == %#v, got %#v", i, test.args[i], args[i])
+				}
+			}
+
+			return func() {
+				done = true
+			}
+		}
+		db := openDBWithHooks(t, &Hooks{Query: assert, Exec: assert})
+
+		switch test.op {
+		case "query":
+			if _, err := db.Query(test.query, test.args...); err != nil {
+				t.Errorf("query: %v", err)
+			}
+		case "exec":
+			if _, err := db.Exec(test.query, test.args...); err != nil {
+				t.Errorf("exec: %v", err)
+			}
+		case "stmt.query":
+			if stmt, err := db.Prepare(test.query); err != nil {
+				t.Errorf("prepare: %v", err)
+			} else {
+				if _, err := stmt.Query(test.args...); err != nil {
+					t.Errorf("prepared query: %v", err)
+				}
+			}
+		case "stmt.exec":
+			if stmt, err := db.Prepare(test.query); err != nil {
+				t.Errorf("prepare: %v", err)
+			} else {
+				if _, err := stmt.Exec(test.args...); err != nil {
+					t.Errorf("prepared exec: %v", err)
+				}
+			}
+		}
+
+		if done == false {
+			t.Errorf("Expected %s cancelation to be completed", test.op)
+		}
+
+	}
 }
 
 func TestEmptyHooks(t *testing.T) {
-	Register("test_2", NewDriver("test", &Hooks{}))
-	db, _ := sql.Open("test_2", "d2")
+	db := openDBWithHooks(t, &Hooks{})
 
-	if _, err := db.Exec("CREATE|t|f1=string"); err != nil {
+	if _, err := db.Exec("INSERT|t|f1=?", "foo"); err != nil {
 		t.Fatalf("Exec: %v\n", err)
 	}
 
@@ -51,13 +127,11 @@ func TestEmptyHooks(t *testing.T) {
 }
 
 func TestCreateInsertAndSelect(t *testing.T) {
-	Register("test_3", NewDriver("test", &Hooks{}))
-	db, _ := sql.Open("test_3", "d3")
+	db := openDBWithHooks(t, &Hooks{})
 
-	db.Exec("CREATE|t|f1=string")
-	db.Exec("INSERT|t|f1=?", "a")
-	db.Exec("INSERT|t|f1=?", "b")
-	db.Exec("INSERT|t|f1=?", "c")
+	db.Exec("INSERT|t|f1=?,f2=?", "a", "1")
+	db.Exec("INSERT|t|f1=?,f2=?", "b", "2")
+	db.Exec("INSERT|t|f1=?,f2=?", "c", "3")
 
 	rows, _ := db.Query("SELECT|t|f1|")
 	var fs []string
@@ -76,53 +150,5 @@ func TestCreateInsertAndSelect(t *testing.T) {
 		if f != e {
 			t.Errorf("f1 = `%s`, expected: `%s`", f, e)
 		}
-	}
-}
-
-func TestCancelationsAreExecuted(t *testing.T) {
-	var executed bool
-
-	exec := func() {
-		executed = true
-	}
-	hooks := Hooks{
-		Exec:  func(string, ...interface{}) func() { return exec },
-		Query: func(string, ...interface{}) func() { return exec },
-	}
-
-	Register("test_4", NewDriver("test", &hooks))
-
-	db, _ := sql.Open("test_4", "d4")
-
-	executed = false
-	db.Exec("CREATE|t1|f1=string")
-	if executed == false {
-		t.Error("Exec hook wasn't executed")
-	}
-
-	executed = false
-	db.Query("SELECT|t1|f1|")
-	if executed == false {
-		t.Error("Query hook wasn't executed")
-	}
-
-	executed = false
-	stmt, err := db.Prepare("CREATE|t2|f1=string")
-	if err != nil {
-		t.Fatalf("Prepare: %v\n", err)
-	}
-	stmt.Exec()
-	if executed == false {
-		t.Error("Prepared Exec Hook wasn't executed")
-	}
-
-	executed = false
-	stmt, err = db.Prepare("SELECT|t2|f1|")
-	if err != nil {
-		t.Fatalf("Prepare: %v\n", err)
-	}
-	stmt.Query()
-	if executed == false {
-		t.Error("Prepared Exec Hook wasn't executed")
 	}
 }
