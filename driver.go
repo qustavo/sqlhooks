@@ -13,6 +13,33 @@ func convertArgs(args []driver.Value) []interface{} {
 	return r
 }
 
+// Hooks contains hook functions for instrumenting Query and Exec
+// Returned func() will be executed after statements have completed
+type Hooks struct {
+	Exec  func(string, ...interface{}) func()
+	Query func(string, ...interface{}) func()
+}
+
+func (h *Hooks) query(query string, args []driver.Value) func() {
+	if hook := h.Query; hook != nil {
+		fn := hook(query, convertArgs(args)...)
+		if fn != nil {
+			return fn
+		}
+	}
+	return func() {}
+}
+
+func (h *Hooks) exec(query string, args []driver.Value) func() {
+	if hook := h.Exec; hook != nil {
+		fn := hook(query, convertArgs(args)...)
+		if fn != nil {
+			return fn
+		}
+	}
+	return func() {}
+}
+
 type stmt struct {
 	driver.Stmt
 	query string
@@ -24,13 +51,7 @@ func (s stmt) Close() error {
 }
 
 func (s stmt) Exec(args []driver.Value) (res driver.Result, err error) {
-	if hook := s.hooks.Exec; hook != nil {
-		fn := hook(s.query, convertArgs(args)...)
-		if fn != nil {
-			defer fn()
-		}
-	}
-
+	defer s.hooks.exec(s.query, args)()
 	return s.Stmt.Exec(args)
 }
 
@@ -39,13 +60,7 @@ func (s stmt) NumInput() int {
 }
 
 func (s stmt) Query(args []driver.Value) (driver.Rows, error) {
-	if hook := s.hooks.Query; hook != nil {
-		fn := hook(s.query, convertArgs(args)...)
-		if fn != nil {
-			defer fn()
-		}
-	}
-
+	defer s.hooks.query(s.query, args)()
 	return s.Stmt.Query(args)
 }
 
@@ -56,13 +71,7 @@ type conn struct {
 
 func (c conn) Query(query string, args []driver.Value) (driver.Rows, error) {
 	if queryer, ok := c.Conn.(driver.Queryer); ok {
-		if hook := c.hooks.Query; hook != nil {
-			fn := hook(query, convertArgs(args)...)
-			if fn != nil {
-				defer fn()
-			}
-		}
-
+		defer c.hooks.query(query, args)()
 		return queryer.Query(query, args)
 	}
 
@@ -72,13 +81,7 @@ func (c conn) Query(query string, args []driver.Value) (driver.Rows, error) {
 
 func (c conn) Exec(query string, args []driver.Value) (driver.Result, error) {
 	if execer, ok := c.Conn.(driver.Execer); ok {
-		if hook := c.hooks.Exec; hook != nil {
-			fn := hook(query, convertArgs(args)...)
-			if fn != nil {
-				defer fn()
-			}
-		}
-
+		defer c.hooks.exec(query, args)()
 		return execer.Exec(query, args)
 	}
 
@@ -97,13 +100,6 @@ func (c conn) Close() error {
 
 func (c conn) Begin() (driver.Tx, error) {
 	return c.Conn.Begin()
-}
-
-// Hooks contains hook functions for instrumenting Query and Exec
-// Returned func() will be executed after statements have completed
-type Hooks struct {
-	Exec  func(string, ...interface{}) func()
-	Query func(string, ...interface{}) func()
 }
 
 // Driver it's a proxy for a specific sql driver

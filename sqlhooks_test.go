@@ -70,7 +70,7 @@ func TestHooks(t *testing.T) {
 			}
 			for i, _ := range test.args {
 				if args[i] != test.args[i] {
-					t.Errorf("arg[%d] == %#v, got %#v", i, test.args[i], args[i])
+					t.Errorf("%s: arg[%d] == %#v, got %#v", test.op, i, test.args[i], args[i])
 				}
 			}
 
