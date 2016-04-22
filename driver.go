@@ -3,6 +3,8 @@ package sqlhooks
 import (
 	"database/sql"
 	"database/sql/driver"
+	"strconv"
+	"time"
 )
 
 func convertArgs(args []driver.Value) []interface{} {
@@ -13,11 +15,15 @@ func convertArgs(args []driver.Value) []interface{} {
 	return r
 }
 
-// Hooks contains hook functions for instrumenting Query and Exec
+// Hooks contains hook functions for sql operations
 // Returned func() will be executed after statements have completed
+// ID will be the same within the same transaction
 type Hooks struct {
-	Exec  func(string, ...interface{}) func()
-	Query func(string, ...interface{}) func()
+	Exec     func(string, ...interface{}) func()
+	Query    func(string, ...interface{}) func()
+	Begin    func(id string)
+	Commit   func(id string)
+	Rollback func(id string)
 }
 
 func (h *Hooks) query(query string, args []driver.Value) func() {
@@ -38,6 +44,28 @@ func (h *Hooks) exec(query string, args []driver.Value) func() {
 		}
 	}
 	return func() {}
+}
+
+type tx struct {
+	driver.Tx
+	hooks *Hooks
+	id    string
+}
+
+func (t tx) Commit() error {
+	if hook := t.hooks.Commit; hook != nil {
+		hook(t.id)
+	}
+
+	return t.Tx.Commit()
+}
+
+func (t tx) Rollback() error {
+	if hook := t.hooks.Rollback; hook != nil {
+		hook(t.id)
+	}
+
+	return t.Tx.Rollback()
 }
 
 type stmt struct {
@@ -99,7 +127,12 @@ func (c conn) Close() error {
 }
 
 func (c conn) Begin() (driver.Tx, error) {
-	return c.Conn.Begin()
+	_tx, err := c.Conn.Begin()
+	id := strconv.FormatInt(time.Now().UnixNano(), 16)
+	if hook := c.hooks.Begin; hook != nil {
+		hook(id)
+	}
+	return tx{_tx, c.hooks, id}, err
 }
 
 // Driver it's a proxy for a specific sql driver

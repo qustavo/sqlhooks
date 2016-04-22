@@ -176,3 +176,49 @@ func TestCreateInsertAndSelect(t *testing.T) {
 		}
 	}
 }
+
+func TestTXs(t *testing.T) {
+	for _, op := range []string{"commit", "rollback"} {
+		ids := struct {
+			begin string
+			end   string
+		}{}
+
+		db := openDBWithHooks(t, &Hooks{
+			Begin: func(id string) {
+				ids.begin = id
+			},
+			Commit: func(id string) {
+				ids.end = id
+			},
+			Rollback: func(id string) {
+				ids.end = id
+			},
+		})
+
+		tx, err := db.Begin()
+		if err != nil {
+			t.Errorf("begin: %v", err)
+			continue
+		}
+
+		switch op {
+		case "commit":
+			if err := tx.Commit(); err != nil {
+				t.Errorf("commit: %v", err)
+			}
+		case "rollback":
+			if err := tx.Rollback(); err != nil {
+				t.Errorf("rollback: %v", err)
+			}
+		}
+
+		if ids.begin == "" {
+			t.Errorf("Expected id to be != ''")
+		}
+
+		if ids.begin != ids.end {
+			t.Errorf("Expected equals ids, got '%s = %s'", ids.begin, ids.end)
+		}
+	}
+}
