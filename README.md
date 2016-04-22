@@ -9,7 +9,7 @@ The purpose of sqlhooks is to provide anway to instrument your sql statements, m
 go get github.com/gchaincl/sqlhooks
 ```
 
-# Usage
+# Usage [![GoDoc](https://godoc.org/github.com/gchaincl/dotsql?status.svg)](https://godoc.org/github.com/gchaincl/sqlhooks)
 ```go
 package main
 
