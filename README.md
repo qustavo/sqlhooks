@@ -67,3 +67,4 @@ sqlhooks will intercept Query and Exec functions and instead run your hooks, out
 - [ ] `Hooks{}` should be an interface instead of a struct
 - [ ] Exec and Query hooks should return `(func(), error)`
 - [ ] Arguments should be pointers so queries can be modified
+- [ ] Implement hooks on Tx
