@@ -2,35 +2,53 @@ package sqlhooks
 
 import (
 	"database/sql"
+	"flag"
 	"fmt"
 	"sort"
 	"testing"
 	"time"
 )
 
+var (
+	driverFlag = flag.String("driver", "test", "SQL Driver")
+	dsnFlag    = flag.String("dsn", "db", "DSN")
+)
+
+type ops struct {
+	wipe        string
+	create      string
+	insert      string
+	selectwhere string
+	selectall   string
+}
+
+var queries = make(map[string]ops)
+
 func openDBWithHooks(t *testing.T, hooks *Hooks) *sql.DB {
+	q := queries[*driverFlag]
+
 	// First, we connect directly using `test` driver
-	if db, err := sql.Open("test", "db"); err != nil {
+	if db, err := sql.Open(*driverFlag, *dsnFlag); err != nil {
 		t.Fatalf("sql.Open: %v", err)
 		return nil
 	} else {
-		if _, err := db.Exec("WIPE"); err != nil {
+		if _, err := db.Exec(q.wipe); err != nil {
 			t.Fatalf("WIPE: %v", err)
 			return nil
 		}
 
-		if _, err := db.Exec("CREATE|t|f1=string,f2=string"); err != nil {
+		if _, err := db.Exec(q.create); err != nil {
 			t.Fatalf("CREATE: %v", err)
 			return nil
 		}
 	}
 
 	// Now, return a db handler using hooked driver
-	driver := NewDriver("test", hooks)
-	driverName := fmt.Sprintf("test-%d", time.Now().UnixNano())
+	driver := NewDriver(*driverFlag, hooks)
+	driverName := fmt.Sprintf("sqlhooks-%d", time.Now().UnixNano())
 	Register(driverName, driver)
 
-	db, err := sql.Open(driverName, "db")
+	db, err := sql.Open(driverName, *dsnFlag)
 	if err != nil {
 		t.Fatalf("sql.Open: %v", err)
 		return nil
@@ -40,18 +58,19 @@ func openDBWithHooks(t *testing.T, hooks *Hooks) *sql.DB {
 }
 
 func TestHooks(t *testing.T) {
+	q := queries[*driverFlag]
 	tests := []struct {
 		op    string
 		query string
 		args  []interface{}
 	}{
-		{"exec", "INSERT|t|f1=?,f2=?", []interface{}{"foo", "bar"}},
-		{"query", "SELECT|t|f1|f1=?,f2=?", []interface{}{"foo", "bar"}},
-		{"query", "SELECT|t|f1|", []interface{}{}},
-		{"stmt.query", "SELECT|t|f1|", nil},
-		{"stmt.exec", "INSERT|t|f1=?", []interface{}{"x"}},
-		{"tx.query", "SELECT|t|f1|", nil},
-		{"tx.exec", "INSERT|t|f1=?", []interface{}{"x"}},
+		{"exec", q.insert, []interface{}{"foo", "bar"}},
+		{"query", q.selectwhere, []interface{}{"foo", "bar"}},
+		{"query", q.selectall, []interface{}{}},
+		{"stmt.query", q.selectall, nil},
+		{"stmt.exec", q.insert, []interface{}{"x", "y"}},
+		{"tx.query", q.selectall, nil},
+		{"tx.exec", q.insert, []interface{}{"x", "y"}},
 	}
 
 	for _, test := range tests {
@@ -139,30 +158,33 @@ func TestHooks(t *testing.T) {
 }
 
 func TestEmptyHooks(t *testing.T) {
+	q := queries[*driverFlag]
 	db := openDBWithHooks(t, &Hooks{})
 
-	if _, err := db.Exec("INSERT|t|f1=?", "foo"); err != nil {
+	if _, err := db.Exec(q.insert, "foo", "bar"); err != nil {
 		t.Fatalf("Exec: %v\n", err)
 	}
 
-	if _, err := db.Query("SELECT|t|f1|"); err != nil {
+	if _, err := db.Query(q.selectall); err != nil {
 		t.Fatalf("Query: %v\n", err)
 	}
 }
 
 func TestCreateInsertAndSelect(t *testing.T) {
+	q := queries[*driverFlag]
 	db := openDBWithHooks(t, &Hooks{})
 
-	db.Exec("INSERT|t|f1=?,f2=?", "a", "1")
-	db.Exec("INSERT|t|f1=?,f2=?", "b", "2")
-	db.Exec("INSERT|t|f1=?,f2=?", "c", "3")
+	db.Exec(q.insert, "a", "1")
+	db.Exec(q.insert, "b", "2")
+	db.Exec(q.insert, "c", "3")
 
-	rows, _ := db.Query("SELECT|t|f1|")
+	rows, _ := db.Query(q.selectall)
 	var fs []string
 	for rows.Next() {
-		var f string
-		rows.Scan(&f)
-		fs = append(fs, f)
+		var f1 string
+		var f2 string
+		rows.Scan(&f1, &f2)
+		fs = append(fs, f1)
 	}
 	sort.Strings(fs)
 	if len(fs) != 3 {
