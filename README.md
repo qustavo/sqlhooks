@@ -57,7 +57,7 @@ func main() {
 }
 ```
 
-sqlhooks will intercept Query and Exec functions and instead run your hooks, output will look like:
+sqlhooks will intercept Query and Exec functions, run your hooks, execute que queries and finally execute the returned func(). Output will look like:
 ```
 2016/04/21 18:18:06 [exec] CREATE TABLE t (id INTEGER, text VARCHAR(16)), args: []
 2016/04/21 18:18:06 [exec] INSERT into t (text) VALUES(?), (?)), args: [foo bar]
