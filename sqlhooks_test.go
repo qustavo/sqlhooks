@@ -75,7 +75,7 @@ func TestHooks(t *testing.T) {
 
 	for _, test := range tests {
 		done := false
-		assert := func(query string, args ...interface{}) func() {
+		assert := func(query string, args ...interface{}) func(error) {
 			// Query Assertions
 			if query != test.query {
 				t.Errorf("query = `%s`, expected `%s`", query, test.query)
@@ -95,7 +95,7 @@ func TestHooks(t *testing.T) {
 				}
 			}
 
-			return func() {
+			return func(error) {
 				done = true
 			}
 		}
@@ -242,5 +242,52 @@ func TestTXs(t *testing.T) {
 		if ids.begin != ids.end {
 			t.Errorf("Expected equals ids, got '%s = %s'", ids.begin, ids.end)
 		}
+	}
+}
+
+func TestErrorHandling(t *testing.T) {
+	// As test driver does not implement .Query and .Exec (driver.ErrSkip)
+	// we can't test this feature with it
+	if *driverFlag == "test" {
+		t.SkipNow()
+	}
+
+	q := queries[*driverFlag]
+	tests := []struct {
+		op      string
+		query   string
+		args    []interface{}
+		isValid bool
+	}{
+		{"exec", q.insert, []interface{}{"a", "b"}, true},
+		{"exec", "invalid.exec", nil, false},
+		{"query", q.selectall, nil, true},
+		{"query", "invalid.query", nil, false},
+	}
+
+	for _, test := range tests {
+		assert := func(err error) {
+			if !test.isValid && err == nil {
+				t.Errorf("[%s] expected error, got nil", test.query)
+			}
+			if test.isValid && err != nil {
+				t.Errorf("[%s] unexpected error, got %v", test.query, err)
+			}
+		}
+
+		fn := func(q string, a ...interface{}) func(error) {
+			return assert
+		}
+
+		db := openDBWithHooks(t, &Hooks{Query: fn, Exec: fn})
+		var err error
+		switch test.op {
+		case "exec":
+			_, err = db.Exec(test.query, test.args...)
+		case "query":
+			_, err = db.Query(test.query, test.args...)
+		}
+
+		assert(err)
 	}
 }

@@ -19,18 +19,18 @@ Example:
 
 	func main() {
 		hooks := sqlhooks.Hooks{
-			Exec: func(query string, args ...interface{}) func() {
+			Exec: func(query string, args ...interface{}) func(error) {
 				log.Printf("[exec] %s, args: %v", query, args)
 				return nil
 			},
-			Query: func(query string, args ...interface{}) func() {
+			Query: func(query string, args ...interface{}) func(error) {
 				t := time.Now()
 				id := t.Nanosecond()
 				log.Printf("[query#%d] %s, args: %v", id, query, args)
 
 				// This will be executed when Query statements has completed
-				return func() {
-					log.Printf("[query#%d] took: %s\n", id, time.Since(t))
+				return func(err error) {
+					log.Printf("[query#%d] took: %s (err: %v)", id, time.Since(t), err)
 				}
 			},
 		}
@@ -46,6 +46,7 @@ Example:
 		db.Exec("CREATE TABLE t (id INTEGER, text VARCHAR(16))")
 		db.Exec("INSERT into t (text) VALUES(?), (?))", "foo", "bar")
 		db.Query("SELECT id, text FROM t")
+		db.Query("Invalid Query")
 	}
 
 */

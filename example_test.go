@@ -9,18 +9,24 @@ import (
 func ExampleNewDriver() {
 	hooks := Hooks{
 		// This hook will log the query
-		Query: func(query string, args ...interface{}) func() {
+		Query: func(query string, args ...interface{}) func(error) {
 			// Log the query
 			log.Println("Query: ", query)
 
 			// Query is done
-			return func() { log.Println("Query done!") }
+			return func(err error) {
+				if err != nil {
+					log.Printf("%v", err)
+				} else {
+					log.Printf("query ok!")
+				}
+			}
 		},
 		// This hook will measure exec time
-		Exec: func(query string, args ...interface{}) func() {
+		Exec: func(query string, args ...interface{}) func(error) {
 			t := time.Now()
-			return func() {
-				log.Println("Exec took: %s\n", time.Since(t))
+			return func(err error) {
+				log.Println("Exec took: %s (%v)\n", time.Since(t), err)
 			}
 		},
 	}

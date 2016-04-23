@@ -19,31 +19,31 @@ func convertArgs(args []driver.Value) []interface{} {
 // Returned func() will be executed after statements have completed
 // ID will be the same within the same transaction
 type Hooks struct {
-	Exec     func(string, ...interface{}) func()
-	Query    func(string, ...interface{}) func()
+	Exec     func(string, ...interface{}) func(error)
+	Query    func(string, ...interface{}) func(error)
 	Begin    func(id string)
 	Commit   func(id string)
 	Rollback func(id string)
 }
 
-func (h *Hooks) query(query string, args []driver.Value) func() {
+func (h *Hooks) query(query string, args []driver.Value) func(error) {
 	if hook := h.Query; hook != nil {
 		fn := hook(query, convertArgs(args)...)
 		if fn != nil {
 			return fn
 		}
 	}
-	return func() {}
+	return func(error) {}
 }
 
-func (h *Hooks) exec(query string, args []driver.Value) func() {
+func (h *Hooks) exec(query string, args []driver.Value) func(error) {
 	if hook := h.Exec; hook != nil {
 		fn := hook(query, convertArgs(args)...)
 		if fn != nil {
 			return fn
 		}
 	}
-	return func() {}
+	return func(error) {}
 }
 
 type tx struct {
@@ -79,7 +79,7 @@ func (s stmt) Close() error {
 }
 
 func (s stmt) Exec(args []driver.Value) (res driver.Result, err error) {
-	defer s.hooks.exec(s.query, args)()
+	defer s.hooks.exec(s.query, args)(nil)
 	return s.Stmt.Exec(args)
 }
 
@@ -88,7 +88,7 @@ func (s stmt) NumInput() int {
 }
 
 func (s stmt) Query(args []driver.Value) (driver.Rows, error) {
-	defer s.hooks.query(s.query, args)()
+	defer s.hooks.query(s.query, args)(nil)
 	return s.Stmt.Query(args)
 }
 
@@ -99,8 +99,10 @@ type conn struct {
 
 func (c conn) Query(query string, args []driver.Value) (driver.Rows, error) {
 	if queryer, ok := c.Conn.(driver.Queryer); ok {
-		defer c.hooks.query(query, args)()
-		return queryer.Query(query, args)
+		fn := c.hooks.query(query, args)
+		rows, err := queryer.Query(query, args)
+		fn(err)
+		return rows, err
 	}
 
 	// Not implemented by underlying driver
@@ -109,8 +111,10 @@ func (c conn) Query(query string, args []driver.Value) (driver.Rows, error) {
 
 func (c conn) Exec(query string, args []driver.Value) (driver.Result, error) {
 	if execer, ok := c.Conn.(driver.Execer); ok {
-		defer c.hooks.exec(query, args)()
-		return execer.Exec(query, args)
+		fn := c.hooks.exec(query, args)
+		res, err := execer.Exec(query, args)
+		fn(err)
+		return res, err
 	}
 
 	// Not implemented by underlying driver

@@ -28,17 +28,17 @@ func main() {
 	// Define your hooks
 	// They will print execution time
 	hooks := sqlhooks.Hooks{
-		Exec: func(query string, args ...interface{}) func() {
+		Exec: func(query string, args ...interface{}) func(error) {
 			log.Printf("[exec] %s, args: %v", query, args)
 			return nil
 		},
-		Query: func(query string, args ...interface{}) func() {
+		Query: func(query string, args ...interface{}) func(error) {
 			t := time.Now()
 			id := t.Nanosecond()
 			log.Printf("[query#%d] %s, args: %v", id, query, args)
-				// This will be executed when Query statements has completed
-			return func() {
-				log.Printf("[query#%d] took: %s\n", id, time.Since(t))
+			// This will be executed when Query statements has completed
+			return func(err error) {
+				log.Printf("[query#%d] took: %s (err: %v)", id, time.Since(t), err)
 			}
 		},
 	}
@@ -54,19 +54,22 @@ func main() {
 	db.Exec("CREATE TABLE t (id INTEGER, text VARCHAR(16))")
 	db.Exec("INSERT into t (text) VALUES(?), (?))", "foo", "bar")
 	db.Query("SELECT id, text FROM t")
+	db.Query("Invalid Query")
 }
 ```
 
 sqlhooks will intercept Query and Exec functions, run your hooks, execute que queries and finally execute the returned func(). Output will look like:
 ```
-2016/04/21 18:18:06 [exec] CREATE TABLE t (id INTEGER, text VARCHAR(16)), args: []
-2016/04/21 18:18:06 [exec] INSERT into t (text) VALUES(?), (?)), args: [foo bar]
-2016/04/21 18:18:06 [query#912806039] SELECT id, text FROM t, args: []
-2016/04/21 18:18:06 [query#912806039] took: 32.425µs
+2016/04/23 19:43:53 [exec] CREATE TABLE t (id INTEGER, text VARCHAR(16)), args: []
+2016/04/23 19:43:53 [exec] INSERT into t (text) VALUES(?), (?)), args: [foo bar]
+2016/04/23 19:43:53 [query#487301557] SELECT id, text FROM t, args: []
+2016/04/23 19:43:53 [query#487301557] took: 37.765µs (err: <nil>)
+2016/04/23 19:43:53 [query#487405691] Invalid Query, args: []
+2016/04/23 19:43:53 [query#487405691] took: 18.312µs (err: near "Invalid": syntax error)
 ```
 
 # TODO
 - [ ] `Hooks{}` should be an interface instead of a struct
-- [ ] Exec and Query hooks should return `(func(), error)`
+- [x] Exec and Query hooks should return `func(error)`
 - [ ] Arguments should be pointers so queries can be modified
 - [x] Implement hooks on Tx
