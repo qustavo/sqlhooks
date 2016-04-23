@@ -6,6 +6,7 @@ go:
     - 1.6
     - tip
 before_install:
+  - go get github.com/mattn/go-sqlite3
   - go get github.com/axw/gocov/gocov
   - go get github.com/mattn/goveralls
   - if ! go get github.com/golang/tools/cmd/cover; then go get golang.org/x/tools/cmd/cover; fi
