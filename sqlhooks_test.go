@@ -24,11 +24,16 @@ type ops struct {
 
 var queries = make(map[string]ops)
 
-func openDBWithHooks(t *testing.T, hooks *Hooks) *sql.DB {
+func openDBWithHooks(t *testing.T, hooks *Hooks, dsnArgs ...string) *sql.DB {
 	q := queries[*driverFlag]
 
+	dsn := *dsnFlag
+	for _, arg := range dsnArgs {
+		dsn = dsn + arg
+	}
+
 	// First, we connect directly using `test` driver
-	if db, err := sql.Open(*driverFlag, *dsnFlag); err != nil {
+	if db, err := sql.Open(*driverFlag, dsn); err != nil {
 		t.Fatalf("sql.Open: %v", err)
 		return nil
 	} else {
@@ -41,6 +46,9 @@ func openDBWithHooks(t *testing.T, hooks *Hooks) *sql.DB {
 			t.Fatalf("CREATE: %v", err)
 			return nil
 		}
+		if err := db.Close(); err != nil {
+			t.Fatalf("db.Close: %v", err)
+		}
 	}
 
 	// Now, return a db handler using hooked driver
@@ -48,7 +56,7 @@ func openDBWithHooks(t *testing.T, hooks *Hooks) *sql.DB {
 	driverName := fmt.Sprintf("sqlhooks-%d", time.Now().UnixNano())
 	Register(driverName, driver)
 
-	db, err := sql.Open(driverName, *dsnFlag)
+	db, err := sql.Open(driverName, dsn)
 	if err != nil {
 		t.Fatalf("sql.Open: %v", err)
 		return nil
@@ -131,8 +139,10 @@ func TestHooks(t *testing.T) {
 			if err != nil {
 				t.Errorf("[%s] begin: %v", test.op, err)
 			}
-			if _, err := tx.Query(test.query, test.args...); err != nil {
+			if rows, err := tx.Query(test.query, test.args...); err != nil {
 				t.Errorf("[%s] query: %v", test.op, err)
+			} else {
+				rows.Close()
 			}
 			if err := tx.Commit(); err != nil {
 				t.Errorf("[%s] commit: %v", test.op, err)
@@ -154,6 +164,7 @@ func TestHooks(t *testing.T) {
 			t.Errorf("Expected %s cancelation to be completed", test.op)
 		}
 
+		db.Close()
 	}
 }
 
@@ -246,10 +257,15 @@ func TestTXs(t *testing.T) {
 }
 
 func TestErrorHandling(t *testing.T) {
-	// As test driver does not implement .Query and .Exec (driver.ErrSkip)
-	// we can't test this feature with it
-	if *driverFlag == "test" {
+	var dsn string
+
+	switch *driverFlag {
+	case "test":
+		// As test driver does not implement .Query and .Exec (driver.ErrSkip)
+		// we can't test this feature with it
 		t.SkipNow()
+	case "mysql":
+		dsn = "?interpolateParams=true"
 	}
 
 	q := queries[*driverFlag]
@@ -279,7 +295,7 @@ func TestErrorHandling(t *testing.T) {
 			return assert
 		}
 
-		db := openDBWithHooks(t, &Hooks{Query: fn, Exec: fn})
+		db := openDBWithHooks(t, &Hooks{Query: fn, Exec: fn}, dsn)
 		var err error
 		switch test.op {
 		case "exec":
