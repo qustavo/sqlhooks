@@ -1,6 +1,7 @@
 language: go
 services:
   - mysql
+  - postgres
 go:
     - 1.3
     - 1.4
@@ -10,14 +11,17 @@ go:
 before_install:
   - go get github.com/mattn/go-sqlite3
   - go get github.com/go-sql-driver/mysql
+  - go get github.com/lib/pq
 
   - go get github.com/axw/gocov/gocov
   - go get github.com/mattn/goveralls
   - if ! go get github.com/golang/tools/cmd/cover; then go get golang.org/x/tools/cmd/cover; fi
 before_script:
   - mysql -e 'create database sqlhooks;'
+  - psql -c 'create database sqlhooks;' -U postgres
 script:
     - $HOME/gopath/bin/goveralls -service=travis-ci
     - go test
-    - go test -tags sqlite3 -driver sqlite3
-    - go test -tags mysql -driver mysql -dsn "travis@/sqlhooks"
+    - go test -tags sqlite3  -driver sqlite3
+    - go test -tags mysql    -driver mysql    -dsn "travis@/sqlhooks"
+    - go test -tags postgres -driver postgres -dsn "postgres://postgres@localhost/sqlhooks"
