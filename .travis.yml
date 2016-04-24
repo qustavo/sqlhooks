@@ -24,4 +24,4 @@ script:
     - go test
     - go test -tags sqlite3  -driver sqlite3
     - go test -tags mysql    -driver mysql    -dsn "travis@/sqlhooks"
-    - go test -tags postgres -driver postgres -dsn "postgres://postgres@localhost/sqlhooks"
+    - go test -tags postgres -driver postgres -dsn "postgres://postgres@localhost/sqlhooks?sslmode=disable"
