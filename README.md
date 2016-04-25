@@ -68,6 +68,14 @@ sqlhooks will intercept Query and Exec functions, run your hooks, execute que qu
 2016/04/23 19:43:53 [query#487405691] took: 18.312µs (err: near "Invalid": syntax error)
 ```
 
+# Benchmark
+```
+BenchmarkExec-4                    	  500000	      4335 ns/op	     566 B/op	      16 allocs/op
+BenchmarkExecWithSQLHooks-4        	  500000	      4918 ns/op	     646 B/op	      19 allocs/op
+BenchmarkPreparedExec-4            	 1000000	      1884 ns/op	     181 B/op	       7 allocs/op
+BenchmarkPreparedExecWithSQLHooks-4	 1000000	      1919 ns/op	     197 B/op	       8 allocs/op
+```
+
 # TODO
 - [ ] `Hooks{}` should be an interface instead of a struct
 - [x] Exec and Query hooks should return `func(error)`
