@@ -51,3 +51,22 @@ Example:
 
 */
 package sqlhooks
+
+import (
+	"database/sql"
+	"fmt"
+	"time"
+)
+
+// Register will register the driver using sql.Register()
+func Register(name string, driver Driver) {
+	sql.Register(name, &driver)
+}
+
+// Open Register a sqlhook driver and opens a connection against it
+// driverName is the driver where we're attaching to
+func Open(driverName, dsn string, hooks *Hooks) (*sql.DB, error) {
+	registeredName := fmt.Sprintf("sqlhooks:%d", time.Now().UnixNano())
+	Register(registeredName, NewDriver(driverName, hooks))
+	return sql.Open(registeredName, dsn)
+}

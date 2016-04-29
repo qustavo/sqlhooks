@@ -43,12 +43,11 @@ func main() {
 		},
 	}
 
-	// Register the driver
-	// "sqlite-hooked" is the attached driver, and "sqlite3" is where we're attaching to
-	sqlhooks.Register("sqlite-hooked", sqlhooks.NewDriver("sqlite3", &hooks))
-
-	// Connect to attached driver
-	db, _ := sql.Open("sqlite-hooked", ":memory:")
+	// Connect to hooked sqlite3 driver
+	db, err := sqlhooks.Open("sqlite3", ":memory:", &hooks)
+	if err != nil {
+		panic(err)
+	}
 
 	// Do you're stuff
 	db.Exec("CREATE TABLE t (id INTEGER, text VARCHAR(16))")

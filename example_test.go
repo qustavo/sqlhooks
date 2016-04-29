@@ -26,7 +26,7 @@ func ExampleNewDriver() {
 		Exec: func(query string, args ...interface{}) func(error) {
 			t := time.Now()
 			return func(err error) {
-				log.Println("Exec took: %s (%v)\n", time.Since(t), err)
+				log.Printf("Exec took: %s (%v)\n", time.Since(t), err)
 			}
 		},
 	}
@@ -41,4 +41,19 @@ func ExampleRegister() {
 
 	// Open a connection
 	sql.Open("hooked-mysql", "/db")
+}
+
+func ExampleOpen() {
+	db, err := Open("mysql", "user:pass@/db", &Hooks{
+		Query: func(query string, args ...interface{}) func(error) {
+			log.Println(query)
+			return nil
+		},
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	db.Query("SELECT 1+1")
 }

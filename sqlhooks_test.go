@@ -3,10 +3,8 @@ package sqlhooks
 import (
 	"database/sql"
 	"flag"
-	"fmt"
 	"sort"
 	"testing"
-	"time"
 )
 
 var (
@@ -51,12 +49,7 @@ func openDBWithHooks(t *testing.T, hooks *Hooks, dsnArgs ...string) *sql.DB {
 		}
 	}
 
-	// Now, return a db handler using hooked driver
-	driver := NewDriver(*driverFlag, hooks)
-	driverName := fmt.Sprintf("sqlhooks-%d", time.Now().UnixNano())
-	Register(driverName, driver)
-
-	db, err := sql.Open(driverName, dsn)
+	db, err := Open(*driverFlag, dsn, hooks)
 	if err != nil {
 		t.Fatalf("sql.Open: %v", err)
 		return nil

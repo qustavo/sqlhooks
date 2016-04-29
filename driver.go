@@ -169,8 +169,3 @@ func (d *Driver) Open(dsn string) (driver.Conn, error) {
 	_conn, err := d.driver.Open(dsn)
 	return conn{_conn, d.hooks}, err
 }
-
-// Register will register the driver using sql.Register()
-func Register(name string, driver Driver) {
-	sql.Register(name, &driver)
-}
