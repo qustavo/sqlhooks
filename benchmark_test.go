@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	Register("sqlhooks", NewDriver("test", &Hooks{
+	sql.Register("sqlhooks", NewDriver("test", &Hooks{
 		Exec: func(string, ...interface{}) func(error) {
 			return func(error) {
 			}

@@ -37,7 +37,7 @@ func ExampleNewDriver() {
 
 func ExampleRegister() {
 	// Register the driver under `hooked-mysql` name
-	Register("hooked-mysql", NewDriver("mysql", &Hooks{}))
+	sql.Register("hooked-mysql", NewDriver("mysql", &Hooks{}))
 
 	// Open a connection
 	sql.Open("hooked-mysql", "/db")

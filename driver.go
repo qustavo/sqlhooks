@@ -148,8 +148,8 @@ type Driver struct {
 
 // NewDriver will create a Proxy Driver with defined Hooks
 // name is the underlying driver name
-func NewDriver(name string, hooks *Hooks) Driver {
-	return Driver{name: name, hooks: hooks}
+func NewDriver(name string, hooks *Hooks) *Driver {
+	return &Driver{name: name, hooks: hooks}
 }
 
 // Open returns a new connection to the database, using the underlying specified driver
