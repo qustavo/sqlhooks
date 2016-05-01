@@ -300,3 +300,20 @@ func TestErrorHandling(t *testing.T) {
 		assert(err)
 	}
 }
+
+func TestDriverIsNotRegisteredTwice(t *testing.T) {
+	registeredDrivers := sql.Drivers()
+	hooks := &Hooks{}
+
+	for i := 0; i < 100; i++ {
+		_, err := Open("test", "db", hooks)
+		if err != nil {
+			t.Fatalf("Unexpected error, got %v", err)
+		}
+	}
+
+	registeredAfterOpen := len(sql.Drivers()) - len(registeredDrivers)
+	if registeredAfterOpen > 1 {
+		t.Errorf("Driver registered %d times more than expected", registeredAfterOpen-1)
+	}
+}

@@ -58,16 +58,20 @@ import (
 	"time"
 )
 
-// Register will register the driver using sql.Register()
-func Register(name string, driver Driver) {
-	sql.Register(name, &driver)
-}
+var (
+	drivers = make(map[*Hooks]string)
+)
 
 // Open Register a sqlhook driver and opens a connection against it
 // driverName is the driver where we're attaching to
 func Open(driverName, dsn string, hooks *Hooks) (*sql.DB, error) {
+	if registeredName, ok := drivers[hooks]; ok {
+		return sql.Open(registeredName, dsn)
+	}
+
 	registeredName := fmt.Sprintf("sqlhooks:%d", time.Now().UnixNano())
 	sql.Register(registeredName, NewDriver(driverName, hooks))
+	drivers[hooks] = registeredName
 
 	return sql.Open(registeredName, dsn)
 }
