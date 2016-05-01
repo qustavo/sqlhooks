@@ -37,7 +37,7 @@ Example:
 
 		// Register the driver
 		// "sqlite-hooked" is the attached driver, and "sqlite3" is where we're attaching to
-		sqlhooks.Register("sqlite-hooked", sqlhooks.NewDriver("sqlite3", &hooks))
+		sql.Register("sqlite-hooked", sqlhooks.NewDriver("sqlite3", &hooks))
 
 		// Connect to attached driver
 		db, _ := sql.Open("sqlite-hooked", ":memory:")
