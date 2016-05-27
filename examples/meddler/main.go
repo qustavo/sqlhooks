@@ -16,13 +16,21 @@ type Person struct {
 	Created time.Time `meddler:"created,localtime"`
 }
 
+type MyQueyer struct {
+}
+
+func (mq MyQueyer) BeforeQuery(ctx *sqlhooks.Context) error {
+	log.Printf("[query#%s] %s %q", ctx.GetID(), ctx.Query, ctx.Args)
+	return nil
+}
+
+func (mq MyQueyer) AfterQuery(ctx *sqlhooks.Context) error {
+	log.Printf("[query#%s] done (err = %v)", ctx.GetID(), ctx.Error)
+	return ctx.Error
+}
+
 func main() {
-	db, err := sqlhooks.Open("sqlite3", ":memory:", &sqlhooks.Hooks{
-		Query: func(q string, a ...interface{}) func(error) {
-			log.Println("[query]", q, a)
-			return nil
-		},
-	})
+	db, err := sqlhooks.Open("sqlite3", ":memory:", &MyQueyer{})
 	if err != nil {
 		panic(err)
 	}
