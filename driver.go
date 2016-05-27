@@ -35,6 +35,10 @@ func NewContext() *Context {
 	return &Context{id: strconv.FormatInt(now, 10)}
 }
 
+func (ctx *Context) GetID() string {
+	return ctx.id
+}
+
 type Beginner interface {
 	BeforeBegin(c *Context) error
 	AfterBegin(c *Context) error
