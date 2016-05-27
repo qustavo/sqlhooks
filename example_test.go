@@ -1,35 +1,20 @@
 package sqlhooks
 
-import (
-	"database/sql"
-	"log"
-	"time"
-)
+import "database/sql"
+
+type MyQueryer struct{}
+
+func (q MyQueryer) BeforeQuery(ctx *Context) error {
+	return nil
+}
+
+func (q MyQueryer) AfterQuery(ctx *Context) error {
+	return nil
+}
 
 func ExampleNewDriver() {
-	hooks := Hooks{
-		// This hook will log the query
-		Query: func(query string, args ...interface{}) func(error) {
-			// Log the query
-			log.Println("Query: ", query)
-
-			// Query is done
-			return func(err error) {
-				if err != nil {
-					log.Printf("%v", err)
-				} else {
-					log.Printf("query ok!")
-				}
-			}
-		},
-		// This hook will measure exec time
-		Exec: func(query string, args ...interface{}) func(error) {
-			t := time.Now()
-			return func(err error) {
-				log.Printf("Exec took: %s (%v)\n", time.Since(t), err)
-			}
-		},
-	}
+	// MyQueryer satisfies Queryer interface
+	hooks := MyQueryer{}
 
 	// mysql is the driver we're going to attach to
 	driver := NewDriver("mysql", &hooks)
@@ -37,13 +22,7 @@ func ExampleNewDriver() {
 }
 
 func ExampleOpen() {
-	db, err := Open("mysql", "user:pass@/db", &Hooks{
-		Query: func(query string, args ...interface{}) func(error) {
-			log.Println(query)
-			return nil
-		},
-	})
-
+	db, err := Open("mysql", "user:pass@/db", nil)
 	if err != nil {
 		panic(err)
 	}

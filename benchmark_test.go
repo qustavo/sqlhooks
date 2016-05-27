@@ -6,12 +6,14 @@ import (
 )
 
 func init() {
-	sql.Register("sqlhooks", NewDriver("test", &Hooks{
-		Exec: func(string, ...interface{}) func(error) {
-			return func(error) {
-			}
+	sql.Register("sqlhooks", NewDriver("test", NewHooksMock(
+		func(ctx *Context) error {
+			return nil
 		},
-	}))
+		func(ctx *Context) error {
+			return ctx.Error
+		},
+	)))
 }
 
 func newDB(b *testing.B, driver string) *sql.DB {

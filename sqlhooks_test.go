@@ -3,8 +3,10 @@ package sqlhooks
 import (
 	"database/sql"
 	"flag"
-	"sort"
+	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -22,7 +24,7 @@ type ops struct {
 
 var queries = make(map[string]ops)
 
-func openDBWithHooks(t *testing.T, hooks *Hooks, dsnArgs ...string) *sql.DB {
+func openDBWithHooks(t *testing.T, hooks interface{}, dsnArgs ...string) *sql.DB {
 	q := queries[*driverFlag]
 
 	dsn := *dsnFlag
@@ -58,255 +60,202 @@ func openDBWithHooks(t *testing.T, hooks *Hooks, dsnArgs ...string) *sql.DB {
 	return db
 }
 
-func TestHooks(t *testing.T) {
+func TestBeforeAndAfterHooks(t *testing.T) {
 	q := queries[*driverFlag]
-	tests := []struct {
-		op    string
-		query string
-		args  []interface{}
-	}{
-		{"exec", q.insert, []interface{}{"foo", "bar"}},
-		{"query", q.selectwhere, []interface{}{"foo", "bar"}},
-		{"query", q.selectall, []interface{}{}},
-		{"stmt.query", q.selectall, nil},
-		{"stmt.exec", q.insert, []interface{}{"x", "y"}},
-		{"tx.query", q.selectall, nil},
-		{"tx.exec", q.insert, []interface{}{"x", "y"}},
-	}
 
-	for _, test := range tests {
-		done := false
-		assert := func(query string, args ...interface{}) func(error) {
-			// Query Assertions
-			if query != test.query {
-				t.Errorf("query = `%s`, expected `%s`", query, test.query)
-			}
-
-			if test.args == nil {
-				test.args = []interface{}{}
-			}
-
-			// Arguments assertions
-			if len(args) != len(test.args) {
-				t.Errorf("Expected args: %d, got %d", len(test.args), len(args))
-			}
-			for i, _ := range test.args {
-				if args[i] != test.args[i] {
-					t.Errorf("%s: arg[%d] == %#v, got %#v", test.op, i, test.args[i], args[i])
-				}
-			}
-
-			return func(error) {
-				done = true
-			}
-		}
-		db := openDBWithHooks(t, &Hooks{Query: assert, Exec: assert})
-
-		switch test.op {
-		case "query":
-			if _, err := db.Query(test.query, test.args...); err != nil {
-				t.Errorf("query: %v", err)
-			}
-		case "exec":
-			if _, err := db.Exec(test.query, test.args...); err != nil {
-				t.Errorf("exec: %v", err)
-			}
-		case "stmt.query":
-			if stmt, err := db.Prepare(test.query); err != nil {
-				t.Errorf("prepare: %v", err)
-			} else {
-				if _, err := stmt.Query(test.args...); err != nil {
-					t.Errorf("prepared query: %v", err)
-				}
-			}
-		case "stmt.exec":
-			if stmt, err := db.Prepare(test.query); err != nil {
-				t.Errorf("prepare: %v", err)
-			} else {
-				if _, err := stmt.Exec(test.args...); err != nil {
-					t.Errorf("prepared exec: %v", err)
-				}
-			}
-		case "tx.query":
-			tx, err := db.Begin()
-			if err != nil {
-				t.Errorf("[%s] begin: %v", test.op, err)
-			}
-			if rows, err := tx.Query(test.query, test.args...); err != nil {
-				t.Errorf("[%s] query: %v", test.op, err)
-			} else {
-				rows.Close()
-			}
-			if err := tx.Commit(); err != nil {
-				t.Errorf("[%s] commit: %v", test.op, err)
-			}
-		case "tx.exec":
-			tx, err := db.Begin()
-			if err != nil {
-				t.Errorf("[%s] begin: %v", test.op, err)
-			}
-			if _, err := tx.Exec(test.query, test.args...); err != nil {
-				t.Errorf("[%s] exec: %v", test.op, err)
-			}
-			if err := tx.Commit(); err != nil {
-				t.Errorf("[%s] commit: %v", test.op, err)
-			}
+	for _, hook := range []string{"Query", "Exec", "Begin", "Commit", "Rollback"} {
+		beforeOk := false
+		before := func(ctx *Context) error {
+			beforeOk = true
+			return nil
 		}
 
-		if done == false {
-			t.Errorf("Expected %s cancelation to be completed", test.op)
+		afterOk := false
+		after := func(ctx *Context) error {
+			afterOk = true
+			return ctx.Error
 		}
 
-		db.Close()
+		hooks := NewHooksMock(before, after)
+		db := openDBWithHooks(t, hooks)
+
+		switch hook {
+		case "Query":
+			db.Query(q.selectall)
+		case "Exec":
+			db.Exec(q.insert)
+		case "Begin":
+			tx, _ := db.Begin()
+
+			hooks.beforeCommit = nil
+			hooks.afterCommit = nil
+			tx.Commit()
+		case "Commit":
+			hooks.beforeBegin = nil
+			hooks.afterBegin = nil
+
+			tx, _ := db.Begin()
+			tx.Commit()
+		case "Rollback":
+			hooks.beforeBegin = nil
+			hooks.afterBegin = nil
+
+			tx, _ := db.Begin()
+			tx.Rollback()
+		}
+
+		assert.True(t, beforeOk, "'Before%s' hook didn't run", hook)
+		assert.True(t, afterOk, "'After%s' hook didn't run", hook)
 	}
 }
 
-func TestEmptyHooks(t *testing.T) {
+func TestBeforeQueryStopsAndReturnsError(t *testing.T) {
 	q := queries[*driverFlag]
-	db := openDBWithHooks(t, &Hooks{})
 
-	if _, err := db.Exec(q.insert, "foo", "bar"); err != nil {
-		t.Fatalf("Exec: %v\n", err)
-	}
+	for _, hook := range []string{"Query", "Exec", "Begin", "Commit", "Rollback"} {
+		someErr := fmt.Errorf("Some Error")
+		before := func(ctx *Context) error {
+			return someErr
+		}
 
-	if _, err := db.Query(q.selectall); err != nil {
-		t.Fatalf("Query: %v\n", err)
+		// this hook should never run
+		after := func(ctx *Context) error {
+			assert.True(t, false, "'After%s' should not run", hook)
+			return nil
+		}
+
+		hooks := NewHooksMock(before, after)
+		db := openDBWithHooks(t, hooks)
+
+		var err error
+		switch hook {
+		case "Query":
+			_, err = db.Query(q.selectall)
+		case "Exec":
+			_, err = db.Exec(q.insert)
+		case "Begin":
+			var tx *sql.Tx
+			tx, err = db.Begin()
+			assert.Nil(t, tx)
+		case "Commit":
+			hooks.beforeBegin = nil
+			hooks.afterBegin = nil
+			tx, _ := db.Begin()
+
+			err = tx.Commit()
+		case "Rollback":
+			hooks.beforeBegin = nil
+			hooks.afterBegin = nil
+			tx, _ := db.Begin()
+
+			err = tx.Rollback()
+		}
+
+		assert.Equal(t, someErr, err, "On %s hooks", hook)
 	}
 }
 
-func TestCreateInsertAndSelect(t *testing.T) {
+func TestBeforeModifiesQueryAndArgs(t *testing.T) {
+	if *driverFlag == "test" {
+		t.SkipNow()
+	}
+
 	q := queries[*driverFlag]
-	db := openDBWithHooks(t, &Hooks{})
 
-	db.Exec(q.insert, "a", "1")
-	db.Exec(q.insert, "b", "2")
-	db.Exec(q.insert, "c", "3")
+	// this hook convert the select where into a select all
+	before := func(ctx *Context) error {
+		ctx.Args = nil
+		ctx.Query = q.selectall
+		return nil
+	}
 
-	rows, _ := db.Query(q.selectall)
-	var fs []string
+	after := func(ctx *Context) error {
+		assert.Equal(t, q.selectall, ctx.Query)
+		assert.Equal(t, []interface{}(nil), ctx.Args)
+		return ctx.Error
+	}
+
+	hooks := &HooksMock{
+		beforeQuery: before,
+		afterQuery:  after,
+	}
+	db := openDBWithHooks(t, hooks)
+
+	db.Exec(q.insert, "x", "y")
+	rows, err := db.Query(q.selectwhere, "a", "b")
+	assert.NoError(t, err)
+
+	found := false
 	for rows.Next() {
-		var f1 string
-		var f2 string
-		rows.Scan(&f1, &f2)
-		fs = append(fs, f1)
-	}
-	sort.Strings(fs)
-	if len(fs) != 3 {
-		t.Fatalf("Expected 3 rows, got: %d", len(fs))
+		found = true
 	}
 
-	for i, e := range []string{"a", "b", "c"}[:len(fs)] {
-		f := fs[i]
-		if f != e {
-			t.Errorf("f1 = `%s`, expected: `%s`", f, e)
-		}
-	}
+	assert.True(t, found)
 }
 
-func TestTXs(t *testing.T) {
-	for _, op := range []string{"commit", "rollback"} {
-		ids := struct {
-			begin string
-			end   string
-		}{}
+func TestBeforePrepare(t *testing.T) {
+	q := queries[*driverFlag]
 
-		db := openDBWithHooks(t, &Hooks{
-			Begin: func(id string) {
-				ids.begin = id
-			},
-			Commit: func(id string) {
-				ids.end = id
-			},
-			Rollback: func(id string) {
-				ids.end = id
-			},
+	before := func(ctx *Context) error {
+		ctx.Query = q.selectall
+		return nil
+	}
+
+	db := openDBWithHooks(t, &HooksMock{beforePrepare: before})
+
+	_, err := db.Prepare("invalid query")
+	assert.NoError(t, err)
+}
+
+func TestAfterReceivesAndHideTheError(t *testing.T) {
+	for _, hook := range []string{"Query", "Exec"} {
+		after := func(ctx *Context) error {
+			assert.Error(t, ctx.Error)
+			return nil // hide the error
+		}
+
+		db := openDBWithHooks(t, &HooksMock{
+			afterQuery: after,
+			afterExec:  after,
 		})
 
-		tx, err := db.Begin()
-		if err != nil {
-			t.Errorf("begin: %v", err)
-			continue
+		var err error
+		switch hook {
+		case "Query":
+			_, err = db.Query("invalid query")
+		case "Exec":
+			_, err = db.Exec("invalid query")
 		}
-
-		switch op {
-		case "commit":
-			if err := tx.Commit(); err != nil {
-				t.Errorf("commit: %v", err)
-			}
-		case "rollback":
-			if err := tx.Rollback(); err != nil {
-				t.Errorf("rollback: %v", err)
-			}
-		}
-
-		if ids.begin == "" {
-			t.Errorf("Expected id to be != ''")
-		}
-
-		if ids.begin != ids.end {
-			t.Errorf("Expected equals ids, got '%s = %s'", ids.begin, ids.end)
-		}
+		assert.NoError(t, err)
 	}
 }
 
-func TestErrorHandling(t *testing.T) {
-	var dsn string
-
-	switch *driverFlag {
-	case "test":
-		// As test driver does not implement .Query and .Exec (driver.ErrSkip)
-		// we can't test this feature with it
-		t.SkipNow()
-	case "mysql":
-		dsn = "?interpolateParams=true"
-	}
-
+func TestDriverItWorksWithNilHooks(t *testing.T) {
 	q := queries[*driverFlag]
-	tests := []struct {
-		op      string
-		query   string
-		args    []interface{}
-		isValid bool
-	}{
-		{"exec", q.insert, []interface{}{"a", "b"}, true},
-		{"exec", "invalid.exec", nil, false},
-		{"query", q.selectall, nil, true},
-		{"query", "invalid.query", nil, false},
+
+	db := openDBWithHooks(t, nil)
+
+	for _ = range [10]bool{} {
+		_, err := db.Exec(q.insert, "foo", "bar")
+		assert.NoError(t, err)
 	}
 
-	for _, test := range tests {
-		assert := func(err error) {
-			if !test.isValid && err == nil {
-				t.Errorf("[%s] expected error, got nil", test.query)
-			}
-			if test.isValid && err != nil {
-				t.Errorf("[%s] unexpected error, got %v", test.query, err)
-			}
-		}
+	rows, err := db.Query(q.selectall)
+	assert.NoError(t, err)
 
-		fn := func(q string, a ...interface{}) func(error) {
-			return assert
-		}
-
-		db := openDBWithHooks(t, &Hooks{Query: fn, Exec: fn}, dsn)
-		var err error
-		switch test.op {
-		case "exec":
-			_, err = db.Exec(test.query, test.args...)
-		case "query":
-			_, err = db.Query(test.query, test.args...)
-		}
-
-		assert(err)
+	items := 0
+	for rows.Next() {
+		items++
 	}
+
+	assert.Equal(t, 10, items)
 }
 
 func TestDriverIsNotRegisteredTwice(t *testing.T) {
 	registeredDrivers := sql.Drivers()
-	hooks := &Hooks{}
 
 	for i := 0; i < 100; i++ {
-		_, err := Open("test", "db", hooks)
+		_, err := Open("test", "db", nil)
 		if err != nil {
 			t.Fatalf("Unexpected error, got %v", err)
 		}

@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func convertArgs(args []driver.Value) []interface{} {
+func driverToInterface(args []driver.Value) []interface{} {
 	r := make([]interface{}, len(args))
 	for i, arg := range args {
 		r[i] = arg
@@ -15,63 +15,112 @@ func convertArgs(args []driver.Value) []interface{} {
 	return r
 }
 
-// Hooks contains hook functions for sql operations
-// Returned func() will be executed after statements have completed
-// ID will be the same within the same transaction
-type Hooks struct {
-	Exec     func(string, ...interface{}) func(error)
-	Query    func(string, ...interface{}) func(error)
-	Begin    func(id string)
-	Commit   func(id string)
-	Rollback func(id string)
+func interfaceToDriver(args []interface{}) []driver.Value {
+	r := make([]driver.Value, len(args))
+	for i, arg := range args {
+		r[i] = arg
+	}
+	return r
 }
 
-func (h *Hooks) query(query string, args []driver.Value) func(error) {
-	if hook := h.Query; hook != nil {
-		fn := hook(query, convertArgs(args)...)
-		if fn != nil {
-			return fn
-		}
-	}
-	return func(error) {}
+type Context struct {
+	id    string
+	Error error
+	Query string
+	Args  []interface{}
 }
 
-func (h *Hooks) exec(query string, args []driver.Value) func(error) {
-	if hook := h.Exec; hook != nil {
-		fn := hook(query, convertArgs(args)...)
-		if fn != nil {
-			return fn
-		}
-	}
-	return func(error) {}
+func NewContext() *Context {
+	now := time.Now().UnixNano()
+	return &Context{id: strconv.FormatInt(now, 10)}
+}
+
+type Beginner interface {
+	BeforeBegin(c *Context) error
+	AfterBegin(c *Context) error
+}
+
+type Commiter interface {
+	BeforeCommit(c *Context) error
+	AfterCommit(c *Context) error
+}
+
+type Rollbacker interface {
+	BeforeRollback(c *Context) error
+	AfterRollback(c *Context) error
+}
+
+type Stmter interface {
+	BeforePrepare(c *Context) error
+	AfterPrepare(c *Context) error
+
+	BeforeStmtQuery(c *Context) error
+	AfterStmtQuery(c *Context) error
+
+	BeforeStmtExec(c *Context) error
+	AfterStmtExec(c *Context) error
+}
+
+type Queryer interface {
+	BeforeQuery(c *Context) error
+	AfterQuery(c *Context) error
+}
+
+type Execer interface {
+	BeforeExec(c *Context) error
+	AfterExec(c *Context) error
 }
 
 type tx struct {
 	driver.Tx
-	hooks *Hooks
-	id    string
+	hooks interface{}
+	ctx   *Context
 }
 
 func (t tx) Commit() error {
-	if hook := t.hooks.Commit; hook != nil {
-		hook(t.id)
+	var ctx *Context
+
+	if v, ok := t.hooks.(Commiter); ok {
+		ctx = NewContext()
+		if err := v.BeforeCommit(ctx); err != nil {
+			return err
+		}
 	}
 
-	return t.Tx.Commit()
+	err := t.Tx.Commit()
+
+	if v, ok := t.hooks.(Commiter); ok {
+		ctx.Error = err
+		err = v.AfterCommit(ctx)
+	}
+
+	return err
 }
 
 func (t tx) Rollback() error {
-	if hook := t.hooks.Rollback; hook != nil {
-		hook(t.id)
+	var ctx *Context
+
+	if v, ok := t.hooks.(Rollbacker); ok {
+		ctx = NewContext()
+		if err := v.BeforeRollback(ctx); err != nil {
+			return err
+		}
 	}
 
-	return t.Tx.Rollback()
+	err := t.Tx.Rollback()
+
+	if v, ok := t.hooks.(Rollbacker); ok {
+		ctx.Error = err
+		err = v.AfterRollback(ctx)
+	}
+
+	return err
 }
 
 type stmt struct {
 	driver.Stmt
-	query string
-	hooks *Hooks
+	hooks interface{}
+	ctx   *Context
 }
 
 func (s stmt) Close() error {
@@ -79,7 +128,14 @@ func (s stmt) Close() error {
 }
 
 func (s stmt) Exec(args []driver.Value) (res driver.Result, err error) {
-	defer s.hooks.exec(s.query, args)(nil)
+	if t, ok := s.hooks.(Stmter); ok {
+		s.ctx.Args = driverToInterface(args)
+		if err := t.BeforeStmtExec(s.ctx); err != nil {
+			return nil, err
+		}
+		args = interfaceToDriver(s.ctx.Args)
+	}
+
 	return s.Stmt.Exec(args)
 }
 
@@ -88,20 +144,75 @@ func (s stmt) NumInput() int {
 }
 
 func (s stmt) Query(args []driver.Value) (driver.Rows, error) {
-	defer s.hooks.query(s.query, args)(nil)
-	return s.Stmt.Query(args)
+	if t, ok := s.hooks.(Stmter); ok {
+		s.ctx.Args = driverToInterface(args)
+		if err := t.BeforeStmtQuery(s.ctx); err != nil {
+			return nil, err
+		}
+		args = interfaceToDriver(s.ctx.Args)
+	}
+
+	rows, err := s.Stmt.Query(args)
+
+	if t, ok := s.hooks.(Stmter); ok {
+		s.ctx.Error = err
+		err = t.AfterStmtQuery(s.ctx)
+	}
+
+	return rows, err
 }
 
 type conn struct {
 	driver.Conn
-	hooks *Hooks
+	hooks interface{}
+}
+
+func (c conn) Prepare(query string) (driver.Stmt, error) {
+	var ctx *Context
+
+	if t, ok := c.hooks.(Stmter); ok {
+		ctx = NewContext()
+		ctx.Query = query
+
+		if err := t.BeforePrepare(ctx); err != nil {
+			return nil, err
+		}
+
+		query = ctx.Query
+	}
+
+	_stmt, err := c.Conn.Prepare(query)
+
+	if t, ok := c.hooks.(Stmter); ok {
+		err = t.AfterPrepare(ctx)
+	}
+
+	return stmt{_stmt, c.hooks, ctx}, err
 }
 
 func (c conn) Query(query string, args []driver.Value) (driver.Rows, error) {
 	if queryer, ok := c.Conn.(driver.Queryer); ok {
-		fn := c.hooks.query(query, args)
+		var ctx *Context
+		if t, ok := c.hooks.(Queryer); ok {
+			ctx = NewContext()
+			ctx.Query = query
+			ctx.Args = driverToInterface(args)
+
+			if err := t.BeforeQuery(ctx); err != nil {
+				return nil, err
+			}
+
+			query = ctx.Query
+			args = interfaceToDriver(ctx.Args)
+		}
+
 		rows, err := queryer.Query(query, args)
-		fn(err)
+
+		if t, ok := c.hooks.(Queryer); ok {
+			ctx.Error = err
+			err = t.AfterQuery(ctx)
+		}
+
 		return rows, err
 	}
 
@@ -111,9 +222,28 @@ func (c conn) Query(query string, args []driver.Value) (driver.Rows, error) {
 
 func (c conn) Exec(query string, args []driver.Value) (driver.Result, error) {
 	if execer, ok := c.Conn.(driver.Execer); ok {
-		fn := c.hooks.exec(query, args)
+		var ctx *Context
+		if t, ok := c.hooks.(Execer); ok {
+			ctx = NewContext()
+			ctx.Query = query
+			//	ctx.Args = args
+
+			if err := t.BeforeExec(ctx); err != nil {
+				return nil, err
+			}
+
+			query = ctx.Query
+			//	args = ctx.Args
+
+		}
+
 		res, err := execer.Exec(query, args)
-		fn(err)
+
+		if t, ok := c.hooks.(Execer); ok {
+			ctx.Error = err
+			err = t.AfterExec(ctx)
+		}
+
 		return res, err
 	}
 
@@ -121,34 +251,41 @@ func (c conn) Exec(query string, args []driver.Value) (driver.Result, error) {
 	return nil, driver.ErrSkip
 }
 
-func (c conn) Prepare(query string) (driver.Stmt, error) {
-	_stmt, err := c.Conn.Prepare(query)
-	return stmt{_stmt, query, c.hooks}, err
-}
-
 func (c conn) Close() error {
 	return c.Conn.Close()
 }
 
 func (c conn) Begin() (driver.Tx, error) {
-	_tx, err := c.Conn.Begin()
-	id := strconv.FormatInt(time.Now().UnixNano(), 16)
-	if hook := c.hooks.Begin; hook != nil {
-		hook(id)
+	var ctx *Context
+
+	if t, ok := c.hooks.(Beginner); ok {
+		ctx = NewContext()
+
+		if err := t.BeforeBegin(ctx); err != nil {
+			return nil, err
+		}
 	}
-	return tx{_tx, c.hooks, id}, err
+
+	_tx, err := c.Conn.Begin()
+
+	if t, ok := c.hooks.(Beginner); ok {
+		ctx.Error = err
+		err = t.AfterBegin(ctx)
+	}
+
+	return tx{_tx, c.hooks, ctx}, err
 }
 
 // Driver it's a proxy for a specific sql driver
 type Driver struct {
 	driver driver.Driver
 	name   string
-	hooks  *Hooks
+	hooks  interface{}
 }
 
 // NewDriver will create a Proxy Driver with defined Hooks
 // name is the underlying driver name
-func NewDriver(name string, hooks *Hooks) *Driver {
+func NewDriver(name string, hooks interface{}) *Driver {
 	return &Driver{name: name, hooks: hooks}
 }
 
