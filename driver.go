@@ -230,14 +230,14 @@ func (c conn) Exec(query string, args []driver.Value) (driver.Result, error) {
 		if t, ok := c.hooks.(Execer); ok {
 			ctx = NewContext()
 			ctx.Query = query
-			//	ctx.Args = args
+			ctx.Args = driverToInterface(args)
 
 			if err := t.BeforeExec(ctx); err != nil {
 				return nil, err
 			}
 
 			query = ctx.Query
-			//	args = ctx.Args
+			args = interfaceToDriver(ctx.Args)
 
 		}
 
