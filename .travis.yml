@@ -22,5 +22,5 @@ script:
     - $HOME/gopath/bin/goveralls -service=travis-ci
     - go test
     - go test -tags sqlite3  -driver sqlite3
-    - go test -tags mysql    -driver mysql    -dsn "travis@/sqlhooks"
+    - go test -tags mysql    -driver mysql    -dsn "travis@/sqlhooks?interpolateParams=true"
     - go test -tags postgres -driver postgres -dsn "postgres://postgres@localhost/sqlhooks?sslmode=disable"
