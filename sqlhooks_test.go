@@ -251,6 +251,28 @@ func TestDriverItWorksWithNilHooks(t *testing.T) {
 	assert.Equal(t, 10, items)
 }
 
+func TestValuesAreSavedAndRetrievedFromCtx(t *testing.T) {
+	q := queries[*driverFlag]
+
+	before := func(ctx *Context) error {
+		ctx.Set("foo", 123)
+		ctx.Set("bar", "sqlhooks")
+		return nil
+	}
+
+	after := func(ctx *Context) error {
+		assert.Equal(t, 123, ctx.Get("foo").(int))
+		assert.Equal(t, "sqlhooks", ctx.Get("bar").(string))
+		return ctx.Error
+	}
+
+	hooks := NewHooksMock(before, after)
+	db := openDBWithHooks(t, hooks)
+
+	_, err := db.Query(q.selectall)
+	assert.NoError(t, err)
+}
+
 func TestDriverIsNotRegisteredTwice(t *testing.T) {
 	registeredDrivers := sql.Drivers()
 

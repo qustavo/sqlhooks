@@ -28,15 +28,31 @@ type Context struct {
 	Error error
 	Query string
 	Args  []interface{}
+
+	values map[string]interface{}
 }
 
 func NewContext() *Context {
 	now := time.Now().UnixNano()
-	return &Context{id: strconv.FormatInt(now, 10)}
+	return &Context{
+		id:     strconv.FormatInt(now, 10),
+		values: make(map[string]interface{}),
+	}
 }
 
 func (ctx *Context) GetID() string {
 	return ctx.id
+}
+
+func (ctx *Context) Get(key string) interface{} {
+	if v, ok := ctx.values[key]; ok {
+		return v
+	}
+	return nil
+}
+
+func (ctx *Context) Set(key string, value interface{}) {
+	ctx.values[key] = value
 }
 
 type Beginner interface {
