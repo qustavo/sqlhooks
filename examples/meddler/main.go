@@ -17,15 +17,19 @@ type Person struct {
 }
 
 type MyQueyer struct {
+	count int
 }
 
-func (mq MyQueyer) BeforeQuery(ctx *sqlhooks.Context) error {
-	log.Printf("[query#%s] %s %q", ctx.GetID(), ctx.Query, ctx.Args)
+func (mq *MyQueyer) BeforeQuery(ctx *sqlhooks.Context) error {
+	mq.count++
+
+	ctx.Set("id", mq.count)
+	log.Printf("[query#%d] %s %q", ctx.Get("id").(int), ctx.Query, ctx.Args)
 	return nil
 }
 
 func (mq MyQueyer) AfterQuery(ctx *sqlhooks.Context) error {
-	log.Printf("[query#%s] done (err = %v)", ctx.GetID(), ctx.Error)
+	log.Printf("[query#%d] done (err = %v)", ctx.Get("id").(int), ctx.Error)
 	return ctx.Error
 }
 
