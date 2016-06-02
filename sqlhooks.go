@@ -1,10 +1,9 @@
 /*
-Package sqlhooks Attach hooks to any database/sql driver.
+Package Sqlhooks provides a mechanism to execute a callbacks around specific database/sql functions.
 
-Sqlhooks provides a mechanism to execute a callbacks around specific database/sql functions.
-
-The purpose of sqlhooks is to provide anway to instrument your sql statements,
-making really easy to log queries or measure execution time without modifying your actual code.
+The purpose of sqlhooks is to provide a way to instrument your database operations,
+making really to log queries and arguments, measure execution time,
+modifies queries before the are executed or stop execution if some conditions are met.
 
 Example:
 	package main
@@ -86,25 +85,35 @@ This type is an alias for interface{}, however the hook should implement at leas
 	- Stmter
 	- Queryer
 	- Execer
+
+Every hook can be attached Before or After the operation.
+Before hooks are triggered just before execute the operation (Begin, Commit, Rollback, Prepare, Query, Exec),
+if they returns an error, neither the operation nor the After hook will executed, and the error will be returned to the caller
+
+After hooks are triggered after the operation complete, the there is an error it will be passed inside *Context.
+The error returned by an After hook will override the error returned from the operation, that's why in most cases
+an after hooks should:
+	return ctx.Error
+
 */
 type HookType interface{}
 
 // Beginner is the interface implemented by objects that wants to hook to Begin function
 type Beginner interface {
-	BeforeBegin(c *Context) error
-	AfterBegin(c *Context) error
+	BeforeBegin(*Context) error
+	AfterBegin(*Context) error
 }
 
 // Commiter is the interface implemented by objects that wants to hook to Commit function
 type Commiter interface {
-	BeforeCommit(c *Context) error
-	AfterCommit(c *Context) error
+	BeforeCommit(*Context) error
+	AfterCommit(*Context) error
 }
 
 // Rollbacker is the interface implemented by objects that wants to hook to Rollback function
 type Rollbacker interface {
-	BeforeRollback(c *Context) error
-	AfterRollback(c *Context) error
+	BeforeRollback(*Context) error
+	AfterRollback(*Context) error
 }
 
 // Stmter is the interface implemented by objects that wants to hook to Statement related functions
@@ -121,12 +130,12 @@ type Stmter interface {
 
 // Queryer is the interface implemented by objects that wants to hook to Query function
 type Queryer interface {
-	BeforeQuery(c *Context) error
-	AfterQuery(c *Context) error
+	BeforeQuery(*Context) error
+	AfterQuery(*Context) error
 }
 
 // Execer is the interface implemented by objects that wants to hook to Exec function
 type Execer interface {
-	BeforeExec(c *Context) error
-	AfterExec(c *Context) error
+	BeforeExec(*Context) error
+	AfterExec(*Context) error
 }
