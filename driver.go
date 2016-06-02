@@ -23,7 +23,7 @@ func interfaceToDriver(args []interface{}) []driver.Value {
 
 type tx struct {
 	driver.Tx
-	hooks interface{}
+	hooks HookType
 	ctx   *Context
 }
 
@@ -69,7 +69,7 @@ func (t tx) Rollback() error {
 
 type stmt struct {
 	driver.Stmt
-	hooks interface{}
+	hooks HookType
 	ctx   *Context
 }
 
@@ -114,7 +114,7 @@ func (s stmt) Query(args []driver.Value) (driver.Rows, error) {
 
 type conn struct {
 	driver.Conn
-	hooks interface{}
+	hooks HookType
 }
 
 func (c conn) Prepare(query string) (driver.Stmt, error) {
@@ -230,12 +230,12 @@ func (c conn) Begin() (driver.Tx, error) {
 type Driver struct {
 	driver driver.Driver
 	name   string
-	hooks  interface{}
+	hooks  HookType
 }
 
 // NewDriver will create a Proxy Driver with defined Hooks
 // name is the underlying driver name
-func NewDriver(name string, hooks interface{}) *Driver {
+func NewDriver(name string, hooks HookType) *Driver {
 	return &Driver{name: name, hooks: hooks}
 }
 

@@ -75,6 +75,20 @@ func Open(driverName, dsn string, hooks interface{}) (*sql.DB, error) {
 	return sql.Open(registeredName, dsn)
 }
 
+/*
+HookType is the type of Hook.
+In order to reduce the amount boilerplate, it's organized by database operations,
+so you can only implement the hooks you need for certain operation
+This type is an alias for interface{}, however the hook should implement at least one of the following interfaces:
+	- Beginner
+	- Commiter
+	- Rollbacker
+	- Stmter
+	- Queryer
+	- Execer
+*/
+type HookType interface{}
+
 // Beginner is the interface implemented by objects that wants to hook to Begin function
 type Beginner interface {
 	BeforeBegin(c *Context) error
