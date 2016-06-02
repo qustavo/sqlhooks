@@ -11,70 +11,62 @@ go get github.com/gchaincl/sqlhooks
 
 # Usage [![GoDoc](https://godoc.org/github.com/gchaincl/dotsql?status.svg)](https://godoc.org/github.com/gchaincl/sqlhooks)
 ```go
-package main
+	package main
 
-import (
-	"database/sql"
-	"log"
-	"time"
+	import (
+		"log"
+		"time"
 
-	"github.com/gchaincl/sqlhooks"
-	_ "github.com/mattn/go-sqlite3"
-)
+		"github.com/gchaincl/sqlhooks"
+		_ "github.com/mattn/go-sqlite3"
+	)
 
-func main() {
-	// Define your hooks
-	// They will print execution time
-	hooks := sqlhooks.Hooks{
-		Exec: func(query string, args ...interface{}) func(error) {
-			log.Printf("[exec] %s, args: %v", query, args)
-			return nil
-		},
-		Query: func(query string, args ...interface{}) func(error) {
-			t := time.Now()
-			id := t.Nanosecond()
-			log.Printf("[query#%d] %s, args: %v", id, query, args)
-			// This will be executed when Query statements has completed
-			return func(err error) {
-				log.Printf("[query#%d] took: %s (err: %v)", id, time.Since(t), err)
-			}
-		},
+	// Hooks satisfies sqlhooks.Queryer interface
+	type Hooks struct {
+		count int
 	}
 
-	// Connect to hooked sqlite3 driver
-	db, err := sqlhooks.Open("sqlite3", ":memory:", &hooks)
-	if err != nil {
-		panic(err)
+	func (h *Hooks) BeforeQuery(ctx *sqlhooks.Context) error {
+		h.count++
+		ctx.Set("t", time.Now())
+		ctx.Set("id", h.count)
+		log.Printf("[query#%d] %s, args: %v", ctx.Get("id").(int), ctx.Query, ctx.Args)
+		return nil
 	}
 
-	// Do you're stuff
-	db.Exec("CREATE TABLE t (id INTEGER, text VARCHAR(16))")
-	db.Exec("INSERT into t (text) VALUES(?), (?))", "foo", "bar")
-	db.Query("SELECT id, text FROM t")
-	db.Query("Invalid Query")
-}
+	func (h *Hooks) AfterQuery(ctx *sqlhooks.Context) error {
+		d := time.Since(ctx.Get("t").(time.Time))
+		log.Printf("[query#%d] took %s (err: %v)", ctx.Get("id").(int), d, ctx.Error)
+		return ctx.Error
+	}
+
+	func main() {
+		hooks := &Hooks{}
+
+		// Connect to attached driver
+		db, _ := sqlhooks.Open("sqlite3", ":memory:", hooks)
+
+		// Do you're stuff
+		db.Exec("CREATE TABLE t (id INTEGER, text VARCHAR(16))")
+		db.Exec("INSERT into t (text) VALUES(?), (?)", "foo", "bar")
+		db.Query("SELECT id, text FROM t")
+		db.Query("Invalid Query")
+	}
+
 ```
 
-sqlhooks will intercept Query and Exec functions, run your hooks, execute que queries and finally execute the returned func(). Output will look like:
 ```
-2016/04/23 19:43:53 [exec] CREATE TABLE t (id INTEGER, text VARCHAR(16)), args: []
-2016/04/23 19:43:53 [exec] INSERT into t (text) VALUES(?), (?)), args: [foo bar]
-2016/04/23 19:43:53 [query#487301557] SELECT id, text FROM t, args: []
-2016/04/23 19:43:53 [query#487301557] took: 37.765µs (err: <nil>)
-2016/04/23 19:43:53 [query#487405691] Invalid Query, args: []
-2016/04/23 19:43:53 [query#487405691] took: 18.312µs (err: near "Invalid": syntax error)
+2016/06/02 14:28:24 [query#1] SELECT id, text FROM t, args: []
+2016/06/02 14:28:24 [query#1] took 122.406µs (err: <nil>)
+2016/06/02 14:28:24 [query#2] Invalid Query, args: []
+2016/06/02 14:28:24 [query#2] took 23.148µs (err: near "Invalid": syntax error)
 ```
 
 # Benchmark
 ```
-BenchmarkExec-4                    	  500000	      4335 ns/op	     566 B/op	      16 allocs/op
-BenchmarkExecWithSQLHooks-4        	  500000	      4918 ns/op	     646 B/op	      19 allocs/op
-BenchmarkPreparedExec-4            	 1000000	      1884 ns/op	     181 B/op	       7 allocs/op
-BenchmarkPreparedExecWithSQLHooks-4	 1000000	      1919 ns/op	     197 B/op	       8 allocs/op
+PASS
+BenchmarkExec-4                    	  500000	      4604 ns/op
+BenchmarkExecWithSQLHooks-4        	  300000	      5726 ns/op
+BenchmarkPreparedExec-4            	 1000000	      1820 ns/op
+BenchmarkPreparedExecWithSQLHooks-4	 1000000	      2088 ns/op
 ```
-
-# TODO
-- [ ] `Hooks{}` should be an interface instead of a struct
-- [x] Exec and Query hooks should return `func(error)`
-- [ ] Arguments should be pointers so queries can be modified
-- [x] Implement hooks on Tx
