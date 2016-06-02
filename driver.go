@@ -3,8 +3,6 @@ package sqlhooks
 import (
 	"database/sql"
 	"database/sql/driver"
-	"strconv"
-	"time"
 )
 
 func driverToInterface(args []driver.Value) []interface{} {
@@ -24,7 +22,6 @@ func interfaceToDriver(args []interface{}) []driver.Value {
 }
 
 type Context struct {
-	id    string
 	Error error
 	Query string
 	Args  []interface{}
@@ -33,15 +30,9 @@ type Context struct {
 }
 
 func NewContext() *Context {
-	now := time.Now().UnixNano()
 	return &Context{
-		id:     strconv.FormatInt(now, 10),
 		values: make(map[string]interface{}),
 	}
-}
-
-func (ctx *Context) GetID() string {
-	return ctx.id
 }
 
 func (ctx *Context) Get(key string) interface{} {

@@ -19,17 +19,20 @@ Example:
 
 	// Hooks satisfies sqlhooks.Queryer interface
 	type Hooks struct {
+		count int
 	}
 
-	func (h Hooks) BeforeQuery(ctx *sqlhooks.Context) error {
-		log.Printf("[query#%s] %s, args: %v", ctx.GetID(), ctx.Query, ctx.Args)
+	func (h *Hooks) BeforeQuery(ctx *sqlhooks.Context) error {
+		h.count++
 		ctx.Set("t", time.Now())
+		ctx.Set("id", h.count)
+		log.Printf("[query#%d] %s, args: %v", ctx.Get("id").(int), ctx.Query, ctx.Args)
 		return nil
 	}
 
-	func (h Hooks) AfterQuery(ctx *sqlhooks.Context) error {
+	func (h *Hooks) AfterQuery(ctx *sqlhooks.Context) error {
 		d := time.Since(ctx.Get("t").(time.Time))
-		log.Printf("[query#%s] took %s (err: %v)", ctx.GetID(), d, ctx.Error)
+		log.Printf("[query#%d] took %s (err: %v)", ctx.Get("id").(int), d, ctx.Error)
 		return ctx.Error
 	}
 
