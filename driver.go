@@ -21,67 +21,6 @@ func interfaceToDriver(args []interface{}) []driver.Value {
 	return r
 }
 
-type Context struct {
-	Error error
-	Query string
-	Args  []interface{}
-
-	values map[string]interface{}
-}
-
-func NewContext() *Context {
-	return &Context{
-		values: make(map[string]interface{}),
-	}
-}
-
-func (ctx *Context) Get(key string) interface{} {
-	if v, ok := ctx.values[key]; ok {
-		return v
-	}
-	return nil
-}
-
-func (ctx *Context) Set(key string, value interface{}) {
-	ctx.values[key] = value
-}
-
-type Beginner interface {
-	BeforeBegin(c *Context) error
-	AfterBegin(c *Context) error
-}
-
-type Commiter interface {
-	BeforeCommit(c *Context) error
-	AfterCommit(c *Context) error
-}
-
-type Rollbacker interface {
-	BeforeRollback(c *Context) error
-	AfterRollback(c *Context) error
-}
-
-type Stmter interface {
-	BeforePrepare(c *Context) error
-	AfterPrepare(c *Context) error
-
-	BeforeStmtQuery(c *Context) error
-	AfterStmtQuery(c *Context) error
-
-	BeforeStmtExec(c *Context) error
-	AfterStmtExec(c *Context) error
-}
-
-type Queryer interface {
-	BeforeQuery(c *Context) error
-	AfterQuery(c *Context) error
-}
-
-type Execer interface {
-	BeforeExec(c *Context) error
-	AfterExec(c *Context) error
-}
-
 type tx struct {
 	driver.Tx
 	hooks interface{}

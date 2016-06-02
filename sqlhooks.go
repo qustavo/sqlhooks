@@ -74,3 +74,45 @@ func Open(driverName, dsn string, hooks interface{}) (*sql.DB, error) {
 
 	return sql.Open(registeredName, dsn)
 }
+
+// Beginner is the interface implemented by objects that wants to hook to Begin function
+type Beginner interface {
+	BeforeBegin(c *Context) error
+	AfterBegin(c *Context) error
+}
+
+// Commiter is the interface implemented by objects that wants to hook to Commit function
+type Commiter interface {
+	BeforeCommit(c *Context) error
+	AfterCommit(c *Context) error
+}
+
+// Rollbacker is the interface implemented by objects that wants to hook to Rollback function
+type Rollbacker interface {
+	BeforeRollback(c *Context) error
+	AfterRollback(c *Context) error
+}
+
+// Stmter is the interface implemented by objects that wants to hook to Statement related functions
+type Stmter interface {
+	BeforePrepare(*Context) error
+	AfterPrepare(*Context) error
+
+	BeforeStmtQuery(*Context) error
+	AfterStmtQuery(*Context) error
+
+	BeforeStmtExec(*Context) error
+	AfterStmtExec(*Context) error
+}
+
+// Queryer is the interface implemented by objects that wants to hook to Query function
+type Queryer interface {
+	BeforeQuery(c *Context) error
+	AfterQuery(c *Context) error
+}
+
+// Execer is the interface implemented by objects that wants to hook to Exec function
+type Execer interface {
+	BeforeExec(c *Context) error
+	AfterExec(c *Context) error
+}
