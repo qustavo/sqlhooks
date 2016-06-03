@@ -41,10 +41,7 @@ go get github.com/gchaincl/sqlhooks
 	}
 
 	func main() {
-		hooks := &Hooks{}
-
-		// Connect to attached driver
-		db, _ := sqlhooks.Open("sqlite3", ":memory:", hooks)
+		db, _ := sqlhooks.Open("sqlite3", ":memory:", &Hooks{})
 
 		// Do you're stuff
 		db.Exec("CREATE TABLE t (id INTEGER, text VARCHAR(16))")
