@@ -60,8 +60,8 @@ var (
 	drivers = make(map[interface{}]string)
 )
 
-// Open Register a sqlhook driver and opens a connection against it
-// driverName is the driver where we're attaching to
+// Open Register a sqlhook driver and opens a connection against it,
+// driverName is the driver where we're attaching to.
 func Open(driverName, dsn string, hooks HookType) (*sql.DB, error) {
 	if registeredName, ok := drivers[hooks]; ok {
 		return sql.Open(registeredName, dsn)
