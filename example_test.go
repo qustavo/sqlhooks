@@ -22,6 +22,14 @@ func ExampleNewDriver() {
 }
 
 func ExampleOpen() {
+	// Where using nil as HookType, so no hooks will be attached.
+	// In order attach hooks, the HookType should implement one of the following interfaces:
+	// - Beginner
+	// - Commiter
+	// - Rollbacker
+	// - Stmter
+	// - Queryer
+	// - Execer
 	db, err := Open("mysql", "user:pass@/db", nil)
 	if err != nil {
 		panic(err)
