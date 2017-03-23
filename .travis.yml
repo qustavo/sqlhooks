@@ -22,7 +22,7 @@ before_script:
   - psql -c 'create database sqlhooks;' -U postgres
 script:
     - $HOME/gopath/bin/goveralls -service=travis-ci
-    - go test
+    - go test ./...
     - go test -tags sqlite3  -driver sqlite3
     - go test -tags mysql    -driver mysql    -dsn "travis@/sqlhooks?interpolateParams=true"
     - go test -tags postgres -driver postgres -dsn "postgres://postgres@localhost/sqlhooks?sslmode=disable"
