@@ -39,12 +39,10 @@ func openDBWithHooks(t *testing.T, hooks interface{}, dsnArgs ...string) *sql.DB
 	} else {
 		if _, err := db.Exec(q.wipe); err != nil {
 			t.Fatalf("WIPE: %v", err)
-			return nil
 		}
 
 		if _, err := db.Exec(q.create); err != nil {
 			t.Fatalf("CREATE: %v", err)
-			return nil
 		}
 		if err := db.Close(); err != nil {
 			t.Fatalf("db.Close: %v", err)
@@ -54,7 +52,6 @@ func openDBWithHooks(t *testing.T, hooks interface{}, dsnArgs ...string) *sql.DB
 	db, err := Open(*driverFlag, dsn, hooks)
 	if err != nil {
 		t.Fatalf("sql.Open: %v", err)
-		return nil
 	}
 
 	return db
