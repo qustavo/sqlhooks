@@ -1,141 +1,181 @@
-/*
-Package Sqlhooks provides a mechanism to execute a callbacks around specific database/sql functions.
-
-The purpose of sqlhooks is to provide a way to instrument your database operations,
-making really to log queries and arguments, measure execution time,
-modifies queries before the are executed or stop execution if some conditions are met.
-
-Example:
-	package main
-
-	import (
-		"log"
-		"time"
-
-		"github.com/gchaincl/sqlhooks"
-		_ "github.com/mattn/go-sqlite3"
-	)
-
-	// Hooks satisfies sqlhooks.Queryer interface
-	type Hooks struct {
-		count int
-	}
-
-	func (h *Hooks) BeforeQuery(ctx *sqlhooks.Context) error {
-		h.count++
-		ctx.Set("t", time.Now())
-		ctx.Set("id", h.count)
-		log.Printf("[query#%d] %s, args: %v", ctx.Get("id").(int), ctx.Query, ctx.Args)
-		return nil
-	}
-
-	func (h *Hooks) AfterQuery(ctx *sqlhooks.Context) error {
-		d := time.Since(ctx.Get("t").(time.Time))
-		log.Printf("[query#%d] took %s (err: %v)", ctx.Get("id").(int), d, ctx.Error)
-		return ctx.Error
-	}
-
-	func main() {
-		hooks := &Hooks{}
-
-		// Connect to attached driver
-		db, _ := sqlhooks.Open("sqlite3", ":memory:", hooks)
-
-		// Do you're stuff
-		db.Exec("CREATE TABLE t (id INTEGER, text VARCHAR(16))")
-		db.Exec("INSERT into t (text) VALUES(?), (?)", "foo", "bar")
-		db.Query("SELECT id, text FROM t")
-		db.Query("Invalid Query")
-	}
-*/
 package sqlhooks
 
 import (
-	"database/sql"
-	"fmt"
-	"time"
+	"context"
+	"database/sql/driver"
 )
 
-var (
-	drivers = make(map[interface{}]string)
-)
+type Hook func(ctx context.Context, query string, args ...interface{}) (context.Context, error)
 
-// Open Register a sqlhook driver and opens a connection against it,
-// driverName is the driver where we're attaching to.
-func Open(driverName, dsn string, hooks HookType) (*sql.DB, error) {
-	if registeredName, ok := drivers[hooks]; ok {
-		return sql.Open(registeredName, dsn)
+type Hooks interface {
+	Before(ctx context.Context, query string, args ...interface{}) (context.Context, error)
+	After(ctx context.Context, query string, args ...interface{}) (context.Context, error)
+}
+
+type Driver struct {
+	driver.Driver
+	hooks Hooks
+}
+
+func (drv *Driver) Open(name string) (driver.Conn, error) {
+	conn, err := drv.Driver.Open(name)
+	if err != nil {
+		return conn, err
 	}
 
-	registeredName := fmt.Sprintf("sqlhooks:%d", time.Now().UnixNano())
-	sql.Register(registeredName, NewDriver(driverName, hooks))
-	drivers[hooks] = registeredName
+	return &Conn{conn, drv.hooks}, nil
+}
 
-	return sql.Open(registeredName, dsn)
+type Conn struct {
+	Conn  driver.Conn
+	hooks Hooks
+}
+
+func (conn *Conn) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
+	var (
+		stmt driver.Stmt
+		err  error
+	)
+
+	if c, ok := conn.Conn.(driver.ConnPrepareContext); ok {
+		stmt, err = c.PrepareContext(ctx, query)
+	} else {
+		stmt, err = conn.Prepare(query)
+	}
+
+	if err != nil {
+		return stmt, err
+	}
+
+	return &Stmt{stmt, conn.hooks, query}, nil
+}
+
+func (conn *Conn) Prepare(query string) (driver.Stmt, error) { return conn.Conn.Prepare(query) }
+func (conn *Conn) Close() error                              { return conn.Conn.Close() }
+func (conn *Conn) Begin() (driver.Tx, error)                 { return conn.Conn.Begin() }
+
+type Stmt struct {
+	Stmt  driver.Stmt
+	hooks Hooks
+	query string
+}
+
+func (stmt *Stmt) execContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
+	if s, ok := stmt.Stmt.(driver.StmtExecContext); ok {
+		return s.ExecContext(ctx, args)
+	}
+
+	values := make([]driver.Value, len(args))
+	for _, arg := range args {
+		values[arg.Ordinal-1] = arg.Value
+	}
+
+	return stmt.Exec(values)
+}
+
+func (stmt *Stmt) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
+	var err error
+
+	// Exec `Before` Hooks
+	if ctx, err = stmt.hooks.Before(ctx, stmt.query, args); err != nil {
+		return nil, err
+	}
+
+	results, err := stmt.execContext(ctx, args)
+	if err != nil {
+		return results, err
+	}
+
+	if ctx, err = stmt.hooks.After(ctx, stmt.query, args); err != nil {
+		return nil, err
+	}
+
+	return results, err
+}
+
+func (stmt *Stmt) queryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
+	if s, ok := stmt.Stmt.(driver.StmtQueryContext); ok {
+		return s.QueryContext(ctx, args)
+	}
+
+	values := make([]driver.Value, len(args))
+	for _, arg := range args {
+		values[arg.Ordinal-1] = arg.Value
+	}
+	return stmt.Query(values)
+}
+
+func (stmt *Stmt) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
+	var err error
+
+	list := namedToInterface(args)
+
+	// Exec Before Hooks
+	if ctx, err = stmt.hooks.Before(ctx, stmt.query, list...); err != nil {
+		return nil, err
+	}
+
+	rows, err := stmt.queryContext(ctx, args)
+	if err != nil {
+		return rows, err
+	}
+
+	if ctx, err = stmt.hooks.After(ctx, stmt.query, list...); err != nil {
+		return nil, err
+	}
+
+	return rows, err
+}
+
+func (stmt *Stmt) Close() error                                    { return stmt.Stmt.Close() }
+func (stmt *Stmt) NumInput() int                                   { return stmt.Stmt.NumInput() }
+func (stmt *Stmt) Exec(args []driver.Value) (driver.Result, error) { return stmt.Stmt.Exec(args) }
+func (stmt *Stmt) Query(args []driver.Value) (driver.Rows, error)  { return stmt.Stmt.Query(args) }
+
+func Wrap(driver driver.Driver, hooks Hooks) driver.Driver {
+	return &Driver{driver, hooks}
+}
+
+func namedToInterface(args []driver.NamedValue) []interface{} {
+	list := make([]interface{}, len(args))
+	for i, a := range args {
+		list[i] = a.Value
+	}
+	return list
 }
 
 /*
-HookType is the type of Hook.
-In order to reduce the amount boilerplate, it's organized by database operations,
-so you can only implement the hooks you need for certain operation
-This type is an alias for interface{}, however the hook should implement at least one of the following interfaces:
-	- Beginner
-	- Commiter
-	- Rollbacker
-	- Stmter
-	- Queryer
-	- Execer
+type hooks struct {
+}
 
-Every hook can be attached Before or After the operation.
-Before hooks are triggered just before execute the operation (Begin, Commit, Rollback, Prepare, Query, Exec),
-if they returns an error, neither the operation nor the After hook will executed, and the error will be returned to the caller
+func (h *hooks) Before(ctx context.Context, query string, args ...interface{}) error {
+	log.Printf("before> ctx = %+v, q=%s, args = %+v\n", ctx, query, args)
+	return nil
+}
 
-After hooks are triggered after the operation complete, the there is an error it will be passed inside *Context.
-The error returned by an After hook will override the error returned from the operation, that's why in most cases
-an after hooks should:
-	return ctx.Error
+func (h *hooks) After(ctx context.Context, query string, args ...interface{}) error {
+	log.Printf("after>  ctx = %+v, q=%s, args = %+v\n", ctx, query, args)
+	return nil
+}
 
+func main() {
+	sql.Register("sqlite3-proxy", Wrap(&sqlite3.SQLiteDriver{}, &hooks{}))
+	db, err := sql.Open("sqlite3-proxy", ":memory:")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	if _, ok := driver.Stmt(&Stmt{}).(driver.StmtExecContext); !ok {
+		panic("NOPE")
+	}
+
+	if _, err := db.Exec("CREATE table users(id int)"); err != nil {
+		log.Printf("|err| = %+v\n", err)
+	}
+
+	if _, err := db.QueryContext(context.Background(), "SELECT * FROM users WHERE id = ?", 1); err != nil {
+		log.Printf("err = %+v\n", err)
+	}
+
+}
 */
-type HookType interface{}
-
-// Beginner is the interface implemented by objects that wants to hook to Begin function
-type Beginner interface {
-	BeforeBegin(*Context) error
-	AfterBegin(*Context) error
-}
-
-// Commiter is the interface implemented by objects that wants to hook to Commit function
-type Commiter interface {
-	BeforeCommit(*Context) error
-	AfterCommit(*Context) error
-}
-
-// Rollbacker is the interface implemented by objects that wants to hook to Rollback function
-type Rollbacker interface {
-	BeforeRollback(*Context) error
-	AfterRollback(*Context) error
-}
-
-// Stmter is the interface implemented by objects that wants to hook to Statement related functions
-type Stmter interface {
-	BeforePrepare(*Context) error
-	AfterPrepare(*Context) error
-
-	BeforeStmtQuery(*Context) error
-	AfterStmtQuery(*Context) error
-
-	BeforeStmtExec(*Context) error
-	AfterStmtExec(*Context) error
-}
-
-// Queryer is the interface implemented by objects that wants to hook to Query function
-type Queryer interface {
-	BeforeQuery(*Context) error
-	AfterQuery(*Context) error
-}
-
-// Execer is the interface implemented by objects that wants to hook to Exec function
-type Execer interface {
-	BeforeExec(*Context) error
-	AfterExec(*Context) error
-}
