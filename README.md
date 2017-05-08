@@ -9,6 +9,12 @@ The purpose of sqlhooks is to provide a way to instrument your sql statements, m
 go get github.com/gchaincl/sqlhooks
 ```
 
+## Breaking changes
+`V1` isn't backward compatible with previous versions, if you want to fetch old versions, you can get them from [gopkg.in](http://gopkg.in/)
+```bash
+go get gopkg.in/gchaincl/sqlhooks.v0
+```
+
 # Usage [![GoDoc](https://godoc.org/github.com/gchaincl/dotsql?status.svg)](https://godoc.org/github.com/gchaincl/sqlhooks)
 
 ```go
