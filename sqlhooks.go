@@ -5,18 +5,22 @@ import (
 	"database/sql/driver"
 )
 
+// Hook is the hook callback signature
 type Hook func(ctx context.Context, query string, args ...interface{}) (context.Context, error)
 
+// Hooks instances may be passed to Wrap() to define an instrumented driver
 type Hooks interface {
 	Before(ctx context.Context, query string, args ...interface{}) (context.Context, error)
 	After(ctx context.Context, query string, args ...interface{}) (context.Context, error)
 }
 
+// Driver implements a database/sql/driver.Driver
 type Driver struct {
 	driver.Driver
 	hooks Hooks
 }
 
+// Open opens a connection
 func (drv *Driver) Open(name string) (driver.Conn, error) {
 	conn, err := drv.Driver.Open(name)
 	if err != nil {
@@ -26,6 +30,7 @@ func (drv *Driver) Open(name string) (driver.Conn, error) {
 	return &Conn{conn, drv.hooks}, nil
 }
 
+// Conn implements a database/sql.driver.Conn
 type Conn struct {
 	Conn  driver.Conn
 	hooks Hooks
@@ -54,6 +59,7 @@ func (conn *Conn) Prepare(query string) (driver.Stmt, error) { return conn.Conn.
 func (conn *Conn) Close() error                              { return conn.Conn.Close() }
 func (conn *Conn) Begin() (driver.Tx, error)                 { return conn.Conn.Begin() }
 
+// Stmt implements a database/sql/driver.Stmt
 type Stmt struct {
 	Stmt  driver.Stmt
 	hooks Hooks
@@ -134,6 +140,8 @@ func (stmt *Stmt) NumInput() int                                   { return stmt
 func (stmt *Stmt) Exec(args []driver.Value) (driver.Result, error) { return stmt.Stmt.Exec(args) }
 func (stmt *Stmt) Query(args []driver.Value) (driver.Rows, error)  { return stmt.Stmt.Query(args) }
 
+// Wrap is used to create a new instrumented driver, it takes a vendor specific driver, and a Hooks instance to produce a new driver instance.
+// It's usually used inside a sql.Register() statement
 func Wrap(driver driver.Driver, hooks Hooks) driver.Driver {
 	return &Driver{driver, hooks}
 }
