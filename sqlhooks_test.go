@@ -121,8 +121,15 @@ func (s *suite) testHooksArguments(t *testing.T, query string, args ...interface
 	s.hooks.after = hook
 
 	ctx := context.WithValue(context.Background(), "key", "val")
-	_, err := s.db.QueryContext(ctx, query, args...)
-	require.NoError(t, err)
+	{
+		_, err := s.db.QueryContext(ctx, query, args...)
+		require.NoError(t, err)
+	}
+
+	{
+		_, err := s.db.ExecContext(ctx, query, args...)
+		require.NoError(t, err)
+	}
 }
 
 func (s *suite) TestHooksArguments(t *testing.T, query string, args ...interface{}) {

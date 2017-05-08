@@ -76,8 +76,10 @@ func (stmt *Stmt) execContext(ctx context.Context, args []driver.NamedValue) (dr
 func (stmt *Stmt) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
 	var err error
 
+	list := namedToInterface(args)
+
 	// Exec `Before` Hooks
-	if ctx, err = stmt.hooks.Before(ctx, stmt.query, args); err != nil {
+	if ctx, err = stmt.hooks.Before(ctx, stmt.query, list...); err != nil {
 		return nil, err
 	}
 
@@ -86,7 +88,7 @@ func (stmt *Stmt) ExecContext(ctx context.Context, args []driver.NamedValue) (dr
 		return results, err
 	}
 
-	if ctx, err = stmt.hooks.After(ctx, stmt.query, args); err != nil {
+	if ctx, err = stmt.hooks.After(ctx, stmt.query, list...); err != nil {
 		return nil, err
 	}
 
