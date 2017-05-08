@@ -9,61 +9,61 @@ The purpose of sqlhooks is to provide a way to instrument your sql statements, m
 go get github.com/gchaincl/sqlhooks
 ```
 
+## Breaking changes
+`V1` isn't backward compatible with previous versions, if you want to fetch old versions, you can get them from [gopkg.in](http://gopkg.in/)
+```bash
+go get gopkg.in/gchaincl/sqlhooks.v0
+```
+
 # Usage [![GoDoc](https://godoc.org/github.com/gchaincl/dotsql?status.svg)](https://godoc.org/github.com/gchaincl/sqlhooks)
+
 ```go
-	package main
+// This example shows how to instrument sql queries in order to display the time that they consume
+package main
 
-	import (
-		"log"
-		"time"
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"time"
 
-		"github.com/gchaincl/sqlhooks"
-		_ "github.com/mattn/go-sqlite3"
-	)
+	"github.com/gchaincl/sqlhooks"
+	"github.com/mattn/go-sqlite3"
+)
 
-	// Hooks satisfies sqlhooks.Queryer interface
-	type Hooks struct {
-		count int
-	}
+// Hooks satisfies the sqlhook.Hooks interface
+type Hooks struct {}
 
-	func (h *Hooks) BeforeQuery(ctx *sqlhooks.Context) error {
-		h.count++
-		ctx.Set("t", time.Now())
-		ctx.Set("id", h.count)
-		log.Printf("[query#%d] %s, args: %v", ctx.Get("id").(int), ctx.Query, ctx.Args)
-		return nil
-	}
+// Before hook will print the query with it's args and return the context with the timestamp
+func (h *Hooks) Before(ctx context.Context, query string, args ...interface{}) (context.Context, error) {
+	fmt.Printf("> %s %q", query, args)
+	return context.WithValue(ctx, "begin", time.Now()), nil
+}
 
-	func (h *Hooks) AfterQuery(ctx *sqlhooks.Context) error {
-		d := time.Since(ctx.Get("t").(time.Time))
-		log.Printf("[query#%d] took %s (err: %v)", ctx.Get("id").(int), d, ctx.Error)
-		return ctx.Error
-	}
+// After hook will get the timestamp registered on the Before hook and print the elapsed time
+func (h *Hooks) After(ctx context.Context, query string, args ...interface{}) (context.Context, error) {
+	begin := ctx.Value("begin").(time.Time)
+	fmt.Printf(". took: %s\n", time.Since(begin))
+	return ctx, nil
+}
 
-	func main() {
-		db, _ := sqlhooks.Open("sqlite3", ":memory:", &Hooks{})
+func main() {
+	// First, register the wrapper
+	sql.Register("sqlite3WithHooks", sqlhooks.Wrap(&sqlite3.SQLiteDriver{}, &Hooks{}))
 
-		// Do you're stuff
-		db.Exec("CREATE TABLE t (id INTEGER, text VARCHAR(16))")
-		db.Exec("INSERT into t (text) VALUES(?), (?)", "foo", "bar")
-		db.Query("SELECT id, text FROM t")
-		db.Query("Invalid Query")
-	}
+	// Connect to the registered wrapped driver
+	db, _ := sql.Open("sqlite3WithHooks", ":memory:")
 
-```
+	// Do you're stuff
+	db.Exec("CREATE TABLE t (id INTEGER, text VARCHAR(16))")
+	db.Exec("INSERT into t (text) VALUES(?), (?)", "foo", "bar")
+	db.Query("SELECT id, text FROM t")
+}
 
-```
-2016/06/02 14:28:24 [query#1] SELECT id, text FROM t, args: []
-2016/06/02 14:28:24 [query#1] took 122.406µs (err: <nil>)
-2016/06/02 14:28:24 [query#2] Invalid Query, args: []
-2016/06/02 14:28:24 [query#2] took 23.148µs (err: near "Invalid": syntax error)
-```
-
-# Benchmark
-```
-PASS
-BenchmarkExec-4                    	  500000	      4604 ns/op
-BenchmarkExecWithSQLHooks-4        	  300000	      5726 ns/op
-BenchmarkPreparedExec-4            	 1000000	      1820 ns/op
-BenchmarkPreparedExecWithSQLHooks-4	 1000000	      2088 ns/op
+/*
+Output should look like:
+> CREATE TABLE t (id INTEGER, text VARCHAR(16)) [[]]. took: 121.238µs
+> INSERT into t (text) VALUES(?), (?) [[{"" '\x01' "foo"} {"" '\x02' "bar"}]]. took: 36.364µs
+> SELECT id, text FROM t []. took: 4.653µs
+*/
 ```

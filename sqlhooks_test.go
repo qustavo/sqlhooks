@@ -1,287 +1,149 @@
 package sqlhooks
 
 import (
+	"context"
 	"database/sql"
-	"flag"
+	"database/sql/driver"
+	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-var (
-	driverFlag = flag.String("driver", "test", "SQL Driver")
-	dsnFlag    = flag.String("dsn", "db", "DSN")
-)
-
-type ops struct {
-	wipe        string
-	create      string
-	insert      string
-	selectwhere string
-	selectall   string
+type testHooks struct {
+	before Hook
+	after  Hook
 }
 
-var queries = make(map[string]ops)
-
-func openDBWithHooks(t *testing.T, hooks interface{}, dsnArgs ...string) *sql.DB {
-	q := queries[*driverFlag]
-
-	dsn := *dsnFlag
-	for _, arg := range dsnArgs {
-		dsn = dsn + arg
+func (h *testHooks) noop() {
+	noop := func(ctx context.Context, query string, args ...interface{}) (context.Context, error) {
+		return ctx, nil
 	}
 
-	// First, we connect directly using `test` driver
-	if db, err := sql.Open(*driverFlag, dsn); err != nil {
-		t.Fatalf("sql.Open: %v", err)
-		return nil
-	} else {
-		if _, err := db.Exec(q.wipe); err != nil {
-			t.Fatalf("WIPE: %v", err)
-		}
-
-		if _, err := db.Exec(q.create); err != nil {
-			t.Fatalf("CREATE: %v", err)
-		}
-		if err := db.Close(); err != nil {
-			t.Fatalf("db.Close: %v", err)
-		}
-	}
-
-	db, err := Open(*driverFlag, dsn, hooks)
-	if err != nil {
-		t.Fatalf("sql.Open: %v", err)
-	}
-
-	return db
+	h.before, h.after = noop, noop
 }
 
-func TestBeforeAndAfterHooks(t *testing.T) {
-	q := queries[*driverFlag]
-
-	for _, hook := range []string{"Query", "Exec", "Begin", "Commit", "Rollback"} {
-		beforeOk := false
-		before := func(ctx *Context) error {
-			beforeOk = true
-			return nil
-		}
-
-		afterOk := false
-		after := func(ctx *Context) error {
-			afterOk = true
-			return ctx.Error
-		}
-
-		hooks := NewHooksMock(before, after)
-		db := openDBWithHooks(t, hooks)
-
-		switch hook {
-		case "Query":
-			db.Query(q.selectall)
-		case "Exec":
-			db.Exec(q.insert)
-		case "Begin":
-			tx, _ := db.Begin()
-
-			hooks.beforeCommit = nil
-			hooks.afterCommit = nil
-			tx.Commit()
-		case "Commit":
-			hooks.beforeBegin = nil
-			hooks.afterBegin = nil
-
-			tx, _ := db.Begin()
-			tx.Commit()
-		case "Rollback":
-			hooks.beforeBegin = nil
-			hooks.afterBegin = nil
-
-			tx, _ := db.Begin()
-			tx.Rollback()
-		}
-
-		assert.True(t, beforeOk, "'Before%s' hook didn't run", hook)
-		assert.True(t, afterOk, "'After%s' hook didn't run", hook)
-	}
+func (h *testHooks) Before(ctx context.Context, query string, args ...interface{}) (context.Context, error) {
+	return h.before(ctx, query, args...)
 }
 
-func TestBeforeQueryStopsAndReturnsError(t *testing.T) {
-	q := queries[*driverFlag]
-
-	for _, hook := range []string{"Query", "Exec", "Begin", "Commit", "Rollback"} {
-		someErr := fmt.Errorf("Some Error")
-		before := func(ctx *Context) error {
-			return someErr
-		}
-
-		// this hook should never run
-		after := func(ctx *Context) error {
-			assert.True(t, false, "'After%s' should not run", hook)
-			return nil
-		}
-
-		hooks := NewHooksMock(before, after)
-		db := openDBWithHooks(t, hooks)
-
-		var err error
-		switch hook {
-		case "Query":
-			_, err = db.Query(q.selectall)
-		case "Exec":
-			_, err = db.Exec(q.insert)
-		case "Begin":
-			var tx *sql.Tx
-			tx, err = db.Begin()
-			assert.Nil(t, tx)
-		case "Commit":
-			hooks.beforeBegin = nil
-			hooks.afterBegin = nil
-			tx, _ := db.Begin()
-
-			err = tx.Commit()
-		case "Rollback":
-			hooks.beforeBegin = nil
-			hooks.afterBegin = nil
-			tx, _ := db.Begin()
-
-			err = tx.Rollback()
-		}
-
-		assert.Equal(t, someErr, err, "On %s hooks", hook)
-	}
+func (h *testHooks) After(ctx context.Context, query string, args ...interface{}) (context.Context, error) {
+	return h.after(ctx, query, args...)
 }
 
-func TestBeforeModifiesQueryAndArgs(t *testing.T) {
-	if *driverFlag == "test" {
-		t.SkipNow()
-	}
-
-	q := queries[*driverFlag]
-
-	// this hook convert the select where into a select all
-	before := func(ctx *Context) error {
-		ctx.Args = nil
-		ctx.Query = q.selectall
-		return nil
-	}
-
-	after := func(ctx *Context) error {
-		assert.Equal(t, q.selectall, ctx.Query)
-		assert.Equal(t, []interface{}(nil), ctx.Args)
-		return ctx.Error
-	}
-
-	hooks := &HooksMock{
-		beforeQuery: before,
-		afterQuery:  after,
-	}
-	db := openDBWithHooks(t, hooks)
-
-	db.Exec(q.insert, "x", "y")
-	rows, err := db.Query(q.selectwhere, "a", "b")
-	assert.NoError(t, err)
-
-	found := false
-	for rows.Next() {
-		found = true
-	}
-
-	assert.True(t, found)
+type suite struct {
+	db    *sql.DB
+	hooks *testHooks
 }
 
-func TestBeforePrepare(t *testing.T) {
-	q := queries[*driverFlag]
+func newSuite(t *testing.T, driver driver.Driver, dsn string) *suite {
+	hooks := &testHooks{}
+	driverName := fmt.Sprintf("sqlhooks-%s", time.Now().String())
+	sql.Register(driverName, Wrap(driver, hooks))
 
-	before := func(ctx *Context) error {
-		ctx.Query = q.selectall
-		return nil
-	}
+	db, err := sql.Open(driverName, dsn)
+	require.NoError(t, err)
+	require.NoError(t, db.Ping())
 
-	db := openDBWithHooks(t, &HooksMock{beforePrepare: before})
-
-	_, err := db.Prepare("invalid query")
-	assert.NoError(t, err)
+	return &suite{db, hooks}
 }
 
-func TestAfterReceivesAndHideTheError(t *testing.T) {
-	for _, hook := range []string{"Query", "Exec"} {
-		after := func(ctx *Context) error {
-			assert.Error(t, ctx.Error)
-			return nil // hide the error
-		}
+func (s *suite) TestHooksExecution(t *testing.T, query string, args ...interface{}) {
+	var before, after bool
 
-		db := openDBWithHooks(t, &HooksMock{
-			afterQuery: after,
-			afterExec:  after,
-		})
-
-		var err error
-		switch hook {
-		case "Query":
-			_, err = db.Query("invalid query")
-		case "Exec":
-			_, err = db.Exec("invalid query")
-		}
-		assert.NoError(t, err)
+	s.hooks.before = func(ctx context.Context, q string, a ...interface{}) (context.Context, error) {
+		before = true
+		return ctx, nil
 	}
+	s.hooks.after = func(ctx context.Context, q string, a ...interface{}) (context.Context, error) {
+		after = true
+		return ctx, nil
+	}
+
+	t.Run("Query", func(t *testing.T) {
+		before, after = false, false
+		_, err := s.db.Query(query, args...)
+		require.NoError(t, err)
+		assert.True(t, before, "Before Hook did not run for query: "+query)
+		assert.True(t, after, "After Hook did not run for query:  "+query)
+	})
+
+	t.Run("QueryContext", func(t *testing.T) {
+		before, after = false, false
+		_, err := s.db.QueryContext(context.Background(), query, args...)
+		require.NoError(t, err)
+		assert.True(t, before, "Before Hook did not run for query: "+query)
+		assert.True(t, after, "After Hook did not run for query:  "+query)
+	})
+
+	t.Run("Exec", func(t *testing.T) {
+		before, after = false, false
+		_, err := s.db.Exec(query, args...)
+		require.NoError(t, err)
+		assert.True(t, before, "Before Hook did not run for query: "+query)
+		assert.True(t, after, "After Hook did not run for query:  "+query)
+	})
+
+	t.Run("ExecContext", func(t *testing.T) {
+		before, after = false, false
+		_, err := s.db.ExecContext(context.Background(), query, args...)
+		require.NoError(t, err)
+		assert.True(t, before, "Before Hook did not run for query: "+query)
+		assert.True(t, after, "After Hook did not run for query:  "+query)
+	})
+
+	t.Run("Statements", func(t *testing.T) {
+		before, after = false, false
+		stmt, err := s.db.Prepare(query)
+		require.NoError(t, err)
+
+		// Hooks just run when the stmt is executed (Query or Exec)
+		assert.False(t, before, "Before Hook run before execution: "+query)
+		assert.False(t, after, "After Hook run before execution:  "+query)
+
+		stmt.Query(args...)
+		assert.True(t, before, "Before Hook did not run for query: "+query)
+		assert.True(t, after, "After Hook did not run for query:  "+query)
+	})
 }
 
-func TestDriverItWorksWithNilHooks(t *testing.T) {
-	q := queries[*driverFlag]
-
-	db := openDBWithHooks(t, nil)
-
-	for _ = range [10]bool{} {
-		_, err := db.Exec(q.insert, "foo", "bar")
-		assert.NoError(t, err)
+func (s *suite) testHooksArguments(t *testing.T, query string, args ...interface{}) {
+	hook := func(ctx context.Context, q string, a ...interface{}) (context.Context, error) {
+		assert.Equal(t, query, q)
+		assert.Equal(t, args, a)
+		assert.Equal(t, "val", ctx.Value("key").(string))
+		return ctx, nil
 	}
+	s.hooks.before = hook
+	s.hooks.after = hook
 
-	rows, err := db.Query(q.selectall)
-	assert.NoError(t, err)
-
-	items := 0
-	for rows.Next() {
-		items++
-	}
-
-	assert.Equal(t, 10, items)
+	ctx := context.WithValue(context.Background(), "key", "val")
+	_, err := s.db.QueryContext(ctx, query, args...)
+	require.NoError(t, err)
 }
 
-func TestValuesAreSavedAndRetrievedFromCtx(t *testing.T) {
-	q := queries[*driverFlag]
-
-	before := func(ctx *Context) error {
-		ctx.Set("foo", 123)
-		ctx.Set("bar", "sqlhooks")
-		return nil
-	}
-
-	after := func(ctx *Context) error {
-		assert.Equal(t, 123, ctx.Get("foo").(int))
-		assert.Equal(t, "sqlhooks", ctx.Get("bar").(string))
-		return ctx.Error
-	}
-
-	hooks := NewHooksMock(before, after)
-	db := openDBWithHooks(t, hooks)
-
-	_, err := db.Query(q.selectall)
-	assert.NoError(t, err)
+func (s *suite) TestHooksArguments(t *testing.T, query string, args ...interface{}) {
+	t.Run("TestHooksArguments", func(t *testing.T) { s.testHooksArguments(t, query, args...) })
 }
 
-func TestDriverIsNotRegisteredTwice(t *testing.T) {
-	registeredDrivers := sql.Drivers()
-
-	for i := 0; i < 100; i++ {
-		_, err := Open("test", "db", nil)
-		if err != nil {
-			t.Fatalf("Unexpected error, got %v", err)
-		}
+func (s *suite) testHooksErrors(t *testing.T, query string) {
+	boom := errors.New("boom")
+	s.hooks.before = func(ctx context.Context, query string, args ...interface{}) (context.Context, error) {
+		return ctx, boom
 	}
 
-	registeredAfterOpen := len(sql.Drivers()) - len(registeredDrivers)
-	if registeredAfterOpen > 1 {
-		t.Errorf("Driver registered %d times more than expected", registeredAfterOpen-1)
+	s.hooks.after = func(ctx context.Context, query string, args ...interface{}) (context.Context, error) {
+		assert.False(t, true, "this should not run")
+		return ctx, nil
 	}
+
+	_, err := s.db.Query(query)
+	assert.Equal(t, boom, err)
+}
+
+func (s *suite) TestHooksErrors(t *testing.T, query string) {
+	t.Run("TestHooksErrors", func(t *testing.T) { s.testHooksErrors(t, query) })
 }
