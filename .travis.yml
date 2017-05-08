@@ -22,5 +22,5 @@ before_script:
   - mysql -e 'create database sqlhooks;'
   - psql -c 'create database sqlhooks;' -U postgres
 script:
-    - $HOME/gopath/bin/goveralls -service=travis-ci
-    - go test -v
+    - go test -v -covermode=count -coverprofile=coverage.out
+    - $HOME/gopath/bin/goveralls -service=travis-ci -coverprofile=coverage.out
