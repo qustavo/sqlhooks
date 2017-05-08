@@ -62,8 +62,8 @@ func main() {
 
 /*
 Output should look like:
-> CREATE TABLE t (id INTEGER, text VARCHAR(16)) [[]]. took: 121.238µs
-> INSERT into t (text) VALUES(?), (?) [[{"" '\x01' "foo"} {"" '\x02' "bar"}]]. took: 36.364µs
+> CREATE TABLE t (id INTEGER, text VARCHAR(16)) []. took: 121.238µs
+> INSERT into t (text) VALUES(?), (?) ["foo" "bar"]. took: 36.364µs
 > SELECT id, text FROM t []. took: 4.653µs
 */
 ```
