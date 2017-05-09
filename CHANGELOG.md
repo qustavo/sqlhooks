@@ -1,13 +1,22 @@
 # Change Log
 
-## [1.0.0](https://github.com/gchaincl/sqlhooks/tree/1.0.0) (2017-05-08)
-[Full Changelog](https://github.com/gchaincl/sqlhooks/compare/v0.4...1.0.0)
+## [Unreleased](https://github.com/gchaincl/sqlhooks/tree/HEAD)
+
+[Full Changelog](https://github.com/gchaincl/sqlhooks/compare/v1.0.0...HEAD)
+
+**Closed issues:**
+
+- Add Benchmarks [\#9](https://github.com/gchaincl/sqlhooks/issues/9)
+## [v1.0.0](https://github.com/gchaincl/sqlhooks/tree/v1.0.0) (2017-05-08)
+[Full Changelog](https://github.com/gchaincl/sqlhooks/compare/v0.4...v1.0.0)
 
 **Merged pull requests:**
 
 - Godoc [\#7](https://github.com/gchaincl/sqlhooks/pull/7) ([gchaincl](https://github.com/gchaincl))
 - Make covermode=count [\#6](https://github.com/gchaincl/sqlhooks/pull/6) ([gchaincl](https://github.com/gchaincl))
 - V1 [\#5](https://github.com/gchaincl/sqlhooks/pull/5) ([gchaincl](https://github.com/gchaincl))
+- Expose a WrapDriver function [\#4](https://github.com/gchaincl/sqlhooks/issues/4)
+- Implement new 1.8 interfaces [\#3](https://github.com/gchaincl/sqlhooks/issues/3)
 
 ## [v0.4](https://github.com/gchaincl/sqlhooks/tree/v0.4) (2017-03-23)
 [Full Changelog](https://github.com/gchaincl/sqlhooks/compare/v0.3...v0.4)
