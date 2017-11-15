@@ -120,6 +120,14 @@ func (conn *ExecerContext) ExecContext(ctx context.Context, query string, args [
 	return results, err
 }
 
+func (conn *ExecerContext) Exec(query string, args []driver.Value) (driver.Result, error) {
+	// We have to implement Exec since it is required in the current version of
+	// Go for it to run ExecContext. From Go 10 it will be optional. However,
+	// this code should never run since database/sql always prefers to run
+	// ExecContext.
+	return nil, errors.New("Exec was called when ExecContext was implemented")
+}
+
 // Stmt implements a database/sql/driver.Stmt
 type Stmt struct {
 	Stmt  driver.Stmt
