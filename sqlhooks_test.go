@@ -154,3 +154,14 @@ func (s *suite) testHooksErrors(t *testing.T, query string) {
 func (s *suite) TestHooksErrors(t *testing.T, query string) {
 	t.Run("TestHooksErrors", func(t *testing.T) { s.testHooksErrors(t, query) })
 }
+
+func TestNamedValueToValue(t *testing.T) {
+	named := []driver.NamedValue{
+		{Ordinal: 1, Value: "foo"},
+		{Ordinal: 2, Value: 42},
+	}
+	want := []driver.Value{"foo", 42}
+	dargs, err := namedValueToValue(named)
+	require.NoError(t, err)
+	assert.Equal(t, want, dargs)
+}
