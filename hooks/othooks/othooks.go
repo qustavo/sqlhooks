@@ -1,8 +1,11 @@
 package othooks
 
-import "context"
-import "github.com/opentracing/opentracing-go"
-import "github.com/opentracing/opentracing-go/log"
+import (
+	"context"
+
+	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/log"
+)
 
 type Hook struct {
 	tracer opentracing.Tracer
@@ -34,4 +37,17 @@ func (h *Hook) After(ctx context.Context, query string, args ...interface{}) (co
 	}
 
 	return ctx, nil
+}
+
+func (h *Hook) OnError(ctx context.Context, err error, query string, args ...interface{}) error {
+	span := opentracing.SpanFromContext(ctx)
+	if span != nil {
+		defer span.Finish()
+		span.SetTag("error", true)
+		span.LogFields(
+			log.Error(err),
+		)
+	}
+
+	return err
 }

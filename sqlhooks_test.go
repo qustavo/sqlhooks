@@ -14,8 +14,9 @@ import (
 )
 
 type testHooks struct {
-	before Hook
-	after  Hook
+	before  Hook
+	after   Hook
+	onError ErrorHook
 }
 
 func (h *testHooks) noop() {
@@ -32,6 +33,10 @@ func (h *testHooks) Before(ctx context.Context, query string, args ...interface{
 
 func (h *testHooks) After(ctx context.Context, query string, args ...interface{}) (context.Context, error) {
 	return h.after(ctx, query, args...)
+}
+
+func (h *testHooks) ErrHook(ctx context.Context, err error, query string, args ...interface{}) error {
+	return h.onError(ctx, err, query, args...)
 }
 
 type suite struct {
@@ -153,6 +158,28 @@ func (s *suite) testHooksErrors(t *testing.T, query string) {
 
 func (s *suite) TestHooksErrors(t *testing.T, query string) {
 	t.Run("TestHooksErrors", func(t *testing.T) { s.testHooksErrors(t, query) })
+}
+
+func (s *suite) testErrHookHook(t *testing.T, query string, args ...interface{}) {
+	s.hooks.before = func(ctx context.Context, query string, args ...interface{}) (context.Context, error) {
+		return ctx, nil
+	}
+
+	s.hooks.after = func(ctx context.Context, query string, args ...interface{}) (context.Context, error) {
+		assert.False(t, true, "after hook should not run")
+		return ctx, nil
+	}
+
+	s.hooks.onError = func(ctx context.Context, err error, query string, args ...interface{}) error {
+		assert.True(t, true, "onError hook should run")
+		return err
+	}
+
+	s.db.Query(query)
+}
+
+func (s *suite) TestErrHookHook(t *testing.T, query string, args ...interface{}) {
+	t.Run("TestErrHookHook", func(t *testing.T) { s.testErrHookHook(t, query, args...) })
 }
 
 func TestNamedValueToValue(t *testing.T) {

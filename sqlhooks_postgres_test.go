@@ -33,6 +33,7 @@ func TestPostgres(t *testing.T) {
 	s.TestHooksExecution(t, "SELECT * FROM users WHERE id = $1", 1)
 	s.TestHooksArguments(t, "SELECT * FROM users WHERE id = $1 AND name = $2", int64(1), "Gus")
 	s.TestHooksErrors(t, "SELECT 1+1")
+	s.TestErrHookHook(t, "SELECT * FROM users WHERE id = $2", "INVALID_ARGS")
 
 	t.Run("DBWorks", func(t *testing.T) {
 		s.hooks.noop()
