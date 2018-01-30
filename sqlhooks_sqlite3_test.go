@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	sqlite3 "github.com/mattn/go-sqlite3"
+	"github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -31,6 +31,7 @@ func TestSQLite3(t *testing.T) {
 	s.TestHooksExecution(t, "SELECT * FROM users WHERE id = ?", 1)
 	s.TestHooksArguments(t, "SELECT * FROM users WHERE id = ? AND name = ?", int64(1), "Gus")
 	s.TestHooksErrors(t, "SELECT 1+1")
+	s.TestErrHookHook(t, "SELECT * FROM users WHERE id = $2", "INVALID_ARGS")
 
 	t.Run("DBWorks", func(t *testing.T) {
 		s.hooks.noop()
