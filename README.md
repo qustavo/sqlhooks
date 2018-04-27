@@ -8,6 +8,7 @@ The purpose of sqlhooks is to provide a way to instrument your sql statements, m
 ```bash
 go get github.com/gchaincl/sqlhooks
 ```
+Requires Go >= 1.8.x
 
 ## Breaking changes
 `V1` isn't backward compatible with previous versions, if you want to fetch old versions, you can get them from [gopkg.in](http://gopkg.in/)
