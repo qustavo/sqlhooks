@@ -50,8 +50,13 @@ func (drv *Driver) Open(name string) (driver.Conn, error) {
 	}
 
 	wrapped := &Conn{conn, drv.hooks}
-	if isExecer(conn) && isQueryer(conn) {
-		return &ExecerQueryerContext{wrapped, &ExecerContext{wrapped}, &QueryerContext{wrapped}}, nil
+	if isExecer(conn) && isQueryer(conn) && isSessionResetter(conn) {
+		return &ExecerQueryerContextWithSessionResetter{wrapped,
+			&ExecerContext{wrapped}, &QueryerContext{wrapped},
+			&SessionResetter{wrapped}}, nil
+	} else if isExecer(conn) && isQueryer(conn) {
+		return &ExecerQueryerContext{wrapped, &ExecerContext{wrapped},
+			&QueryerContext{wrapped}}, nil
 	} else if isExecer(conn) {
 		// If conn implements an Execer interface, return a driver.Conn which
 		// also implements Execer
@@ -215,6 +220,37 @@ type ExecerQueryerContext struct {
 	*Conn
 	*ExecerContext
 	*QueryerContext
+}
+
+// ExecerQueryerContext implements database/sql.driver.ExecerContext and
+// database/sql.driver.QueryerContext
+type ExecerQueryerContextWithSessionResetter struct {
+	*Conn
+	*ExecerContext
+	*QueryerContext
+	*SessionResetter
+}
+
+type SessionResetter struct {
+	*Conn
+}
+
+func isSessionResetter(conn driver.Conn) bool {
+	switch conn.(type) {
+	case driver.SessionResetter:
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *SessionResetter) ResetSession(ctx context.Context) error {
+	switch c := s.Conn.Conn.(type) {
+	case driver.SessionResetter:
+		return c.ResetSession(ctx)
+	}
+
+	return nil
 }
 
 // Stmt implements a database/sql/driver.Stmt
