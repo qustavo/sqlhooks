@@ -236,21 +236,13 @@ type SessionResetter struct {
 }
 
 func isSessionResetter(conn driver.Conn) bool {
-	switch conn.(type) {
-	case driver.SessionResetter:
-		return true
-	default:
-		return false
-	}
+	_, ok := conn.(driver.SessionResetter)
+	return ok
 }
 
 func (s *SessionResetter) ResetSession(ctx context.Context) error {
-	switch c := s.Conn.Conn.(type) {
-	case driver.SessionResetter:
-		return c.ResetSession(ctx)
-	}
-
-	return nil
+	c := s.Conn.Conn.(driver.SessionResetter)
+	return c.ResetSession(ctx)
 }
 
 // Stmt implements a database/sql/driver.Stmt
