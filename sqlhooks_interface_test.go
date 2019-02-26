@@ -10,6 +10,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var interfaceTestCases = []struct {
+	name               string
+	expectedInterfaces []interface{}
+}{
+	{"Basic", []interface{}{(*driver.Conn)(nil)}},
+	{"Execer", []interface{}{(*driver.Execer)(nil)}},
+	{"ExecerContext", []interface{}{(*driver.ExecerContext)(nil)}},
+	{"Queryer", []interface{}{(*driver.QueryerContext)(nil)}},
+	{"QueryerContext", []interface{}{(*driver.QueryerContext)(nil)}},
+	{"ExecerQueryerContext", []interface{}{
+		(*driver.ExecerContext)(nil),
+		(*driver.QueryerContext)(nil)}},
+}
+
 type fakeDriver struct{}
 
 func (d *fakeDriver) Open(dsn string) (driver.Conn, error) {
@@ -100,25 +114,7 @@ func (*FakeConnSessionResetter) ResetSession(ctx context.Context) error {
 func TestInterfaces(t *testing.T) {
 	drv := Wrap(&fakeDriver{}, &testHooks{})
 
-	cases := []struct {
-		name               string
-		expectedInterfaces []interface{}
-	}{
-		{"Basic", []interface{}{(*driver.Conn)(nil)}},
-		{"Execer", []interface{}{(*driver.Execer)(nil)}},
-		{"ExecerContext", []interface{}{(*driver.ExecerContext)(nil)}},
-		{"Queryer", []interface{}{(*driver.QueryerContext)(nil)}},
-		{"QueryerContext", []interface{}{(*driver.QueryerContext)(nil)}},
-		{"ExecerQueryerContext", []interface{}{
-			(*driver.ExecerContext)(nil),
-			(*driver.QueryerContext)(nil)}},
-		{"ExecerQueryerContextSessionResetter", []interface{}{
-			(*driver.ExecerContext)(nil),
-			(*driver.QueryerContext)(nil),
-			(*driver.SessionResetter)(nil)}},
-	}
-
-	for _, c := range cases {
+	for _, c := range interfaceTestCases {
 		conn, err := drv.Open(c.name)
 		require.NoErrorf(t, err, "Driver name %s", c.name)
 
