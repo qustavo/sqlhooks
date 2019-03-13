@@ -160,6 +160,13 @@ func (conn *ExecerContext) Exec(query string, args []driver.Value) (driver.Resul
 	return nil, errors.New("Exec was called when ExecContext was implemented")
 }
 
+func (conn *Conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
+	if ciCtx, is := conn.Conn.(driver.ConnBeginTx); is {
+		return ciCtx.BeginTx(ctx, opts)
+	}
+	return nil, errors.New("sqlhooks: driver does not support non-default isolation level")
+}
+
 // QueryerContext implements a database/sql.driver.QueryerContext
 type QueryerContext struct {
 	*Conn
