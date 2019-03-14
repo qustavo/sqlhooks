@@ -1,6 +1,7 @@
 package sqlhooks
 
 import (
+	"context"
 	"database/sql"
 	"os"
 	"testing"
@@ -53,5 +54,14 @@ func TestPostgres(t *testing.T) {
 			s.db.QueryRow("SELECT COUNT(*) FROM users").Scan(&count),
 		)
 		assert.Equal(t, 5, count)
+
+		{ // Should execute the query successfully when a transaction with non default isolation level is used.
+			var count int
+			tx, err := s.db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelSerializable})
+			if assert.NoError(t, err) {
+				require.NoError(t, tx.QueryRow("SELECT COUNT(*) FROM users").Scan(&count))
+				assert.Equal(t, 5, count)
+			}
+		}
 	})
 }
