@@ -164,7 +164,7 @@ func (conn *Conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx
 	if ciCtx, is := conn.Conn.(driver.ConnBeginTx); is {
 		return ciCtx.BeginTx(ctx, opts)
 	}
-	return nil, errors.New("sqlhooks: driver does not support non-default isolation level")
+	return nil, errors.New("driver does not implement driver.ConnBeginTx")
 }
 
 // QueryerContext implements a database/sql.driver.QueryerContext
