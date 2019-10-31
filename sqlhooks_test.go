@@ -35,7 +35,7 @@ func (h *testHooks) After(ctx context.Context, query string, args ...interface{}
 	return h.after(ctx, query, args...)
 }
 
-func (h *testHooks) ErrHook(ctx context.Context, err error, query string, args ...interface{}) error {
+func (h *testHooks) OnError(ctx context.Context, err error, query string, args ...interface{}) error {
 	return h.onError(ctx, err, query, args...)
 }
 
