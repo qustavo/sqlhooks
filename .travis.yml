@@ -2,12 +2,12 @@ language: go
 services:
   - mysql
   - postgres
+
 go:
-    - 1.8.x
-    - 1.9.x
-    - 1.10.x
-    - 1.11.x
+    - 1.12
+    - 1.13
     - tip
+
 env:
   global:
     - SQLHOOKS_MYSQL_DSN="travis@/sqlhooks?interpolateParams=true"
