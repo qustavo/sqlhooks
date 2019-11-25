@@ -71,3 +71,26 @@ func TestCompose(t *testing.T) {
 		})
 	}
 }
+
+func TestWrapErrors(t *testing.T) {
+	var (
+		err1 = errors.New("oops")
+		err2 = errors.New("oops2")
+	)
+	for _, it := range []struct {
+		name   string
+		def    error
+		errors []error
+		want   error
+	}{
+		{"no errors", err1, nil, err1},
+		{"single error", nil, []error{err1}, err1},
+		{"multiple errors", nil, []error{err1, err2}, MultipleErrors([]error{err1, err2})},
+	} {
+		t.Run(it.name, func(t *testing.T) {
+			if want, got := it.want, wrapErrors(it.def, it.errors); !reflect.DeepEqual(want, got) {
+				t.Errorf("unexpected wrapping. want: %q, got %q", want, got)
+			}
+		})
+	}
+}

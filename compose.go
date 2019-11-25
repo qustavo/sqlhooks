@@ -27,14 +27,7 @@ func (c composed) Before(ctx context.Context, query string, args ...interface{})
 			ctx = c
 		}
 	}
-	switch len(errors) {
-	case 0:
-		return ctx, nil
-	case 1:
-		return ctx, errors[0]
-	default:
-		return ctx, MultipleErrors(errors)
-	}
+	return ctx, wrapErrors(nil, errors)
 }
 
 func (c composed) After(ctx context.Context, query string, args ...interface{}) (context.Context, error) {
@@ -49,14 +42,7 @@ func (c composed) After(ctx context.Context, query string, args ...interface{}) 
 			ctx = c
 		}
 	}
-	switch len(errors) {
-	case 0:
-		return ctx, nil
-	case 1:
-		return ctx, errors[0]
-	default:
-		return ctx, MultipleErrors(errors)
-	}
+	return ctx, wrapErrors(nil, errors)
 }
 
 func (c composed) OnError(ctx context.Context, cause error, query string, args ...interface{}) error {
@@ -68,9 +54,13 @@ func (c composed) OnError(ctx context.Context, cause error, query string, args .
 			}
 		}
 	}
+	return wrapErrors(cause, errors)
+}
+
+func wrapErrors(def error, errors []error) error {
 	switch len(errors) {
 	case 0:
-		return cause
+		return def
 	case 1:
 		return errors[0]
 	default:
