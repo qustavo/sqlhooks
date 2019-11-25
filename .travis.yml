@@ -10,14 +10,11 @@ go:
 
 env:
   global:
+    - GO111MODULE=on
     - SQLHOOKS_MYSQL_DSN="travis@/sqlhooks?interpolateParams=true"
     - SQLHOOKS_POSTGRES_DSN="postgres://postgres@localhost/sqlhooks?sslmode=disable"
 
 before_install:
-  - go get github.com/mattn/go-sqlite3
-  - go get github.com/go-sql-driver/mysql
-  - go get github.com/lib/pq
-
   - go get github.com/axw/gocov/gocov
   - go get github.com/mattn/goveralls
   - if ! go get github.com/golang/tools/cmd/cover; then go get golang.org/x/tools/cmd/cover; fi
