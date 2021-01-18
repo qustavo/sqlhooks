@@ -51,22 +51,29 @@ func (drv *Driver) Open(name string) (driver.Conn, error) {
 
 	wrapped := &Conn{conn, drv.hooks}
 	if isExecer(conn) && isQueryer(conn) && isSessionResetter(conn) {
-		return &ExecerQueryerContextWithSessionResetter{wrapped,
+		conn = &ExecerQueryerContextWithSessionResetter{wrapped,
 			&ExecerContext{wrapped}, &QueryerContext{wrapped},
-			&SessionResetter{wrapped}}, nil
+			&SessionResetter{wrapped}}
 	} else if isExecer(conn) && isQueryer(conn) {
-		return &ExecerQueryerContext{wrapped, &ExecerContext{wrapped},
-			&QueryerContext{wrapped}}, nil
+		conn = &ExecerQueryerContext{wrapped, &ExecerContext{wrapped},
+			&QueryerContext{wrapped}}
 	} else if isExecer(conn) {
 		// If conn implements an Execer interface, return a driver.Conn which
 		// also implements Execer
-		return &ExecerContext{wrapped}, nil
+		conn = &ExecerContext{wrapped}
 	} else if isQueryer(conn) {
 		// If conn implements an Queryer interface, return a driver.Conn which
 		// also implements Queryer
-		return &QueryerContext{wrapped}, nil
+		conn = &QueryerContext{wrapped}
 	}
-	return wrapped, nil
+
+	// If conn implements a ConnBeginTx interface, return a driver.Conn which
+	// also implements ConnBeginTx
+	if _, ok := conn.(driver.ConnBeginTx); ok {
+		conn = &ConnBeginTx{Conn: conn}
+	}
+
+	return conn, nil
 }
 
 // Conn implements a database/sql.driver.Conn
@@ -233,6 +240,15 @@ type ExecerQueryerContextWithSessionResetter struct {
 
 type SessionResetter struct {
 	*Conn
+}
+
+// ConnBeginTx implements a database/sql.driver.ConnBeginTx
+type ConnBeginTx struct {
+	driver.Conn
+}
+
+func (conn *ConnBeginTx) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
+	return conn.Conn.(driver.ConnBeginTx).BeginTx(ctx, opts)
 }
 
 // Stmt implements a database/sql/driver.Stmt

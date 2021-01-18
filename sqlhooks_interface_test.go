@@ -63,6 +63,12 @@ func (d *fakeDriver) Open(dsn string) (driver.Conn, error) {
 			*FakeConnQueryer
 			*FakeConnSessionResetter
 		}{}, nil
+	case "ConnBeginTx":
+		return &struct {
+			*FakeConnBasic
+			*FakeConnQueryer
+			*FakeConnBeginTx
+		}{}, nil
 	}
 
 	return nil, errors.New("Fake driver not implemented")
@@ -109,6 +115,12 @@ type FakeConnSessionResetter struct{}
 
 func (*FakeConnSessionResetter) ResetSession(ctx context.Context) error {
 	return errors.New("Not implemented")
+}
+
+type FakeConnBeginTx struct{}
+
+func (*FakeConnBeginTx) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
+	return nil, errors.New("Not implemented")
 }
 
 func TestInterfaces(t *testing.T) {
