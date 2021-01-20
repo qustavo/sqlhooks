@@ -49,31 +49,29 @@ func (drv *Driver) Open(name string) (driver.Conn, error) {
 		return conn, err
 	}
 
+	// Drivers that don't implement driver.ConnBeginTx are not supported.
+	if _, ok := conn.(driver.ConnBeginTx); !ok {
+		return nil, errors.New("driver must implement driver.ConnBeginTx")
+	}
+
 	wrapped := &Conn{conn, drv.hooks}
 	if isExecer(conn) && isQueryer(conn) && isSessionResetter(conn) {
-		conn = &ExecerQueryerContextWithSessionResetter{wrapped,
+		return &ExecerQueryerContextWithSessionResetter{wrapped,
 			&ExecerContext{wrapped}, &QueryerContext{wrapped},
-			&SessionResetter{wrapped}}
+			&SessionResetter{wrapped}}, nil
 	} else if isExecer(conn) && isQueryer(conn) {
-		conn = &ExecerQueryerContext{wrapped, &ExecerContext{wrapped},
-			&QueryerContext{wrapped}}
+		return &ExecerQueryerContext{wrapped, &ExecerContext{wrapped},
+			&QueryerContext{wrapped}}, nil
 	} else if isExecer(conn) {
 		// If conn implements an Execer interface, return a driver.Conn which
 		// also implements Execer
-		conn = &ExecerContext{wrapped}
+		return &ExecerContext{wrapped}, nil
 	} else if isQueryer(conn) {
 		// If conn implements an Queryer interface, return a driver.Conn which
 		// also implements Queryer
-		conn = &QueryerContext{wrapped}
+		return &QueryerContext{wrapped}, nil
 	}
-
-	// If conn implements a ConnBeginTx interface, return a driver.Conn which
-	// also implements ConnBeginTx
-	if _, ok := conn.(driver.ConnBeginTx); ok {
-		conn = &ConnBeginTx{Conn: conn}
-	}
-
-	return conn, nil
+	return wrapped, nil
 }
 
 // Conn implements a database/sql.driver.Conn
@@ -104,6 +102,9 @@ func (conn *Conn) PrepareContext(ctx context.Context, query string) (driver.Stmt
 func (conn *Conn) Prepare(query string) (driver.Stmt, error) { return conn.Conn.Prepare(query) }
 func (conn *Conn) Close() error                              { return conn.Conn.Close() }
 func (conn *Conn) Begin() (driver.Tx, error)                 { return conn.Conn.Begin() }
+func (conn *Conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
+	return conn.Conn.(driver.ConnBeginTx).BeginTx(ctx, opts)
+}
 
 // ExecerContext implements a database/sql.driver.ExecerContext
 type ExecerContext struct {
@@ -240,15 +241,6 @@ type ExecerQueryerContextWithSessionResetter struct {
 
 type SessionResetter struct {
 	*Conn
-}
-
-// ConnBeginTx implements a database/sql.driver.ConnBeginTx
-type ConnBeginTx struct {
-	driver.Conn
-}
-
-func (conn *ConnBeginTx) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
-	return conn.Conn.(driver.ConnBeginTx).BeginTx(ctx, opts)
 }
 
 // Stmt implements a database/sql/driver.Stmt

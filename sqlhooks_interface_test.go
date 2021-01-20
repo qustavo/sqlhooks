@@ -63,12 +63,8 @@ func (d *fakeDriver) Open(dsn string) (driver.Conn, error) {
 			*FakeConnQueryer
 			*FakeConnSessionResetter
 		}{}, nil
-	case "ConnBeginTx":
-		return &struct {
-			*FakeConnBasic
-			*FakeConnQueryer
-			*FakeConnBeginTx
-		}{}, nil
+	case "NonConnBeginTx":
+		return &FakeConnUnsupported{}, nil
 	}
 
 	return nil, errors.New("Fake driver not implemented")
@@ -84,6 +80,9 @@ func (*FakeConnBasic) Close() error {
 	return errors.New("Not implemented")
 }
 func (*FakeConnBasic) Begin() (driver.Tx, error) {
+	return nil, errors.New("Not implemented")
+}
+func (*FakeConnBasic) BeginTx(context.Context, driver.TxOptions) (driver.Tx, error) {
 	return nil, errors.New("Not implemented")
 }
 
@@ -117,9 +116,17 @@ func (*FakeConnSessionResetter) ResetSession(ctx context.Context) error {
 	return errors.New("Not implemented")
 }
 
-type FakeConnBeginTx struct{}
+// FakeConnUnsupported implements a database/sql.driver.Conn but doesn't implement
+// driver.ConnBeginTx.
+type FakeConnUnsupported struct{}
 
-func (*FakeConnBeginTx) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
+func (*FakeConnUnsupported) Prepare(query string) (driver.Stmt, error) {
+	return nil, errors.New("Not implemented")
+}
+func (*FakeConnUnsupported) Close() error {
+	return errors.New("Not implemented")
+}
+func (*FakeConnUnsupported) Begin() (driver.Tx, error) {
 	return nil, errors.New("Not implemented")
 }
 
@@ -134,4 +141,10 @@ func TestInterfaces(t *testing.T) {
 			assert.Implements(t, i, conn)
 		}
 	}
+}
+
+func TestUnsupportedDrivers(t *testing.T) {
+	drv := Wrap(&fakeDriver{}, &testHooks{})
+	_, err := drv.Open("NonConnBeginTx")
+	require.EqualError(t, err, "driver must implement driver.ConnBeginTx")
 }
