@@ -60,7 +60,7 @@ func TestSpansAreRecorded(t *testing.T) {
 	assert.NotEmpty(t, span.FinishTime)
 }
 
-func TesNoSpansAreRecorded(t *testing.T) {
+func TestNoSpansAreRecorded(t *testing.T) {
 	db, err := sql.Open("ot", ":memory:")
 	require.NoError(t, err)
 	defer db.Close()
