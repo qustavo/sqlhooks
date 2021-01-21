@@ -49,6 +49,11 @@ func (drv *Driver) Open(name string) (driver.Conn, error) {
 		return conn, err
 	}
 
+	// Drivers that don't implement driver.ConnBeginTx are not supported.
+	if _, ok := conn.(driver.ConnBeginTx); !ok {
+		return nil, errors.New("driver must implement driver.ConnBeginTx")
+	}
+
 	wrapped := &Conn{conn, drv.hooks}
 	if isExecer(conn) && isQueryer(conn) && isSessionResetter(conn) {
 		return &ExecerQueryerContextWithSessionResetter{wrapped,
@@ -97,6 +102,9 @@ func (conn *Conn) PrepareContext(ctx context.Context, query string) (driver.Stmt
 func (conn *Conn) Prepare(query string) (driver.Stmt, error) { return conn.Conn.Prepare(query) }
 func (conn *Conn) Close() error                              { return conn.Conn.Close() }
 func (conn *Conn) Begin() (driver.Tx, error)                 { return conn.Conn.Begin() }
+func (conn *Conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
+	return conn.Conn.(driver.ConnBeginTx).BeginTx(ctx, opts)
+}
 
 // ExecerContext implements a database/sql.driver.ExecerContext
 type ExecerContext struct {
