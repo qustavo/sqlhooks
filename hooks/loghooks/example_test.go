@@ -3,7 +3,7 @@ package loghooks
 import (
 	"database/sql"
 
-	"github.com/gchaincl/sqlhooks"
+	"github.com/gchaincl/sqlhooks/v2"
 	sqlite3 "github.com/mattn/go-sqlite3"
 )
 
