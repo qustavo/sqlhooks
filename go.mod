@@ -1,4 +1,4 @@
-module github.com/gchaincl/sqlhooks
+module github.com/gchaincl/sqlhooks/v2
 
 go 1.13
 

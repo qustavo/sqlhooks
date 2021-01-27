@@ -6,14 +6,15 @@ The purpose of sqlhooks is to provide a way to instrument your sql statements, m
 
 # Install
 ```bash
-go get github.com/gchaincl/sqlhooks
+go get github.com/gchaincl/sqlhooks/v2
 ```
 Requires Go >= 1.8.x
 
 ## Breaking changes
-`V1` isn't backward compatible with previous versions, if you want to fetch old versions, you can get them from [gopkg.in](http://gopkg.in/)
+`V2` isn't backward compatible with previous versions, if you want to fetch old versions, you can use go modules or get them from [gopkg.in](http://gopkg.in/)
 ```bash
-go get gopkg.in/gchaincl/sqlhooks.v0
+go get github.com/gchaincl/sqlhooks
+go get gopkg.in/gchaincl/sqlhooks.v1
 ```
 
 # Usage [![GoDoc](https://godoc.org/github.com/gchaincl/dotsql?status.svg)](https://godoc.org/github.com/gchaincl/sqlhooks)
@@ -28,7 +29,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gchaincl/sqlhooks"
+	"github.com/gchaincl/sqlhooks/v2"
 	"github.com/mattn/go-sqlite3"
 )
 
