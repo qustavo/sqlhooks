@@ -23,6 +23,12 @@ type OnErrorer interface {
 	OnError(ctx context.Context, err error, query string, args ...interface{}) error
 }
 
+// RowsWrapper is an optional interface for Hooks representing the hability of
+// wrapper rows.
+type RowsWrapper interface {
+	Rows(r driver.Rows) driver.Rows
+}
+
 func handlerErr(ctx context.Context, hooks Hooks, err error, query string, args ...interface{}) error {
 	h, ok := hooks.(OnErrorer)
 	if !ok {
@@ -217,6 +223,10 @@ func (conn *QueryerContext) QueryContext(ctx context.Context, query string, args
 
 	if ctx, err = conn.hooks.After(ctx, query, list...); err != nil {
 		return nil, err
+	}
+
+	if w, ok := conn.hooks.(RowsWrapper); ok {
+		results = w.Rows(results)
 	}
 
 	return results, err
