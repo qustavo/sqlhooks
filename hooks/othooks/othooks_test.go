@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"testing"
 
-	"github.com/gchaincl/sqlhooks/v2"
+	"github.com/qustavo/sqlhooks/v2"
 	sqlite3 "github.com/mattn/go-sqlite3"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/mocktracer"

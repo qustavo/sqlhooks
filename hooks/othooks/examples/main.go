@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"log"
 
-	"github.com/gchaincl/sqlhooks/v2"
-	"github.com/gchaincl/sqlhooks/v2/hooks/othooks"
+	"github.com/qustavo/sqlhooks/v2"
+	"github.com/qustavo/sqlhooks/v2/hooks/othooks"
 	"github.com/mattn/go-sqlite3"
 	"github.com/opentracing/opentracing-go"
 )

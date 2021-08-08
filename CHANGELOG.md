@@ -1,40 +1,40 @@
 # Change Log
 
-## [Unreleased](https://github.com/gchaincl/sqlhooks/tree/HEAD)
+## [Unreleased](https://github.com/qustavo/sqlhooks/tree/HEAD)
 
-[Full Changelog](https://github.com/gchaincl/sqlhooks/compare/v1.0.0...HEAD)
-
-**Closed issues:**
-
-- Add Benchmarks [\#9](https://github.com/gchaincl/sqlhooks/issues/9)
-## [v1.0.0](https://github.com/gchaincl/sqlhooks/tree/v1.0.0) (2017-05-08)
-[Full Changelog](https://github.com/gchaincl/sqlhooks/compare/v0.4...v1.0.0)
-
-**Merged pull requests:**
-
-- Godoc [\#7](https://github.com/gchaincl/sqlhooks/pull/7) ([gchaincl](https://github.com/gchaincl))
-- Make covermode=count [\#6](https://github.com/gchaincl/sqlhooks/pull/6) ([gchaincl](https://github.com/gchaincl))
-- V1 [\#5](https://github.com/gchaincl/sqlhooks/pull/5) ([gchaincl](https://github.com/gchaincl))
-- Expose a WrapDriver function [\#4](https://github.com/gchaincl/sqlhooks/issues/4)
-- Implement new 1.8 interfaces [\#3](https://github.com/gchaincl/sqlhooks/issues/3)
-
-## [v0.4](https://github.com/gchaincl/sqlhooks/tree/v0.4) (2017-03-23)
-[Full Changelog](https://github.com/gchaincl/sqlhooks/compare/v0.3...v0.4)
-
-## [v0.3](https://github.com/gchaincl/sqlhooks/tree/v0.3) (2016-06-02)
-[Full Changelog](https://github.com/gchaincl/sqlhooks/compare/v0.2...v0.3)
+[Full Changelog](https://github.com/qustavo/sqlhooks/compare/v1.0.0...HEAD)
 
 **Closed issues:**
 
-- Change Notifications [\#2](https://github.com/gchaincl/sqlhooks/issues/2)
+- Add Benchmarks [\#9](https://github.com/qustavo/sqlhooks/issues/9)
+## [v1.0.0](https://github.com/qustavo/sqlhooks/tree/v1.0.0) (2017-05-08)
+[Full Changelog](https://github.com/qustavo/sqlhooks/compare/v0.4...v1.0.0)
 
-## [v0.2](https://github.com/gchaincl/sqlhooks/tree/v0.2) (2016-05-01)
-[Full Changelog](https://github.com/gchaincl/sqlhooks/compare/v0.1...v0.2)
-
-## [v0.1](https://github.com/gchaincl/sqlhooks/tree/v0.1) (2016-04-25)
 **Merged pull requests:**
 
-- Sqlite3 [\#1](https://github.com/gchaincl/sqlhooks/pull/1) ([gchaincl](https://github.com/gchaincl))
+- Godoc [\#7](https://github.com/qustavo/sqlhooks/pull/7) ([qustavo](https://github.com/qustavo))
+- Make covermode=count [\#6](https://github.com/qustavo/sqlhooks/pull/6) ([qustavo](https://github.com/qustavo))
+- V1 [\#5](https://github.com/qustavo/sqlhooks/pull/5) ([qustavo](https://github.com/qustavo))
+- Expose a WrapDriver function [\#4](https://github.com/qustavo/sqlhooks/issues/4)
+- Implement new 1.8 interfaces [\#3](https://github.com/qustavo/sqlhooks/issues/3)
+
+## [v0.4](https://github.com/qustavo/sqlhooks/tree/v0.4) (2017-03-23)
+[Full Changelog](https://github.com/qustavo/sqlhooks/compare/v0.3...v0.4)
+
+## [v0.3](https://github.com/qustavo/sqlhooks/tree/v0.3) (2016-06-02)
+[Full Changelog](https://github.com/qustavo/sqlhooks/compare/v0.2...v0.3)
+
+**Closed issues:**
+
+- Change Notifications [\#2](https://github.com/qustavo/sqlhooks/issues/2)
+
+## [v0.2](https://github.com/qustavo/sqlhooks/tree/v0.2) (2016-05-01)
+[Full Changelog](https://github.com/qustavo/sqlhooks/compare/v0.1...v0.2)
+
+## [v0.1](https://github.com/qustavo/sqlhooks/tree/v0.1) (2016-04-25)
+**Merged pull requests:**
+
+- Sqlite3 [\#1](https://github.com/qustavo/sqlhooks/pull/1) ([qustavo](https://github.com/qustavo))
 
 
 

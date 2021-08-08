@@ -1,4 +1,4 @@
-# sqlhooks [![Build Status](https://travis-ci.org/gchaincl/sqlhooks.svg)](https://travis-ci.org/gchaincl/sqlhooks) [![Coverage Status](https://coveralls.io/repos/github/gchaincl/sqlhooks/badge.svg?branch=master)](https://coveralls.io/github/gchaincl/sqlhooks?branch=master) [![Go Report Card](https://goreportcard.com/badge/github.com/gchaincl/sqlhooks)](https://goreportcard.com/report/github.com/gchaincl/sqlhooks)
+# sqlhooks [![Build Status](https://travis-ci.org/qustavo/sqlhooks.svg)](https://travis-ci.org/qustavo/sqlhooks) [![Coverage Status](https://coveralls.io/repos/github/qustavo/sqlhooks/badge.svg?branch=master)](https://coveralls.io/github/qustavo/sqlhooks?branch=master) [![Go Report Card](https://goreportcard.com/badge/github.com/qustavo/sqlhooks)](https://goreportcard.com/report/github.com/qustavo/sqlhooks)
 
 Attach hooks to any database/sql driver.
 
@@ -6,18 +6,18 @@ The purpose of sqlhooks is to provide a way to instrument your sql statements, m
 
 # Install
 ```bash
-go get github.com/gchaincl/sqlhooks/v2
+go get github.com/qustavo/sqlhooks/v2
 ```
 Requires Go >= 1.8.x
 
 ## Breaking changes
 `V2` isn't backward compatible with previous versions, if you want to fetch old versions, you can use go modules or get them from [gopkg.in](http://gopkg.in/)
 ```bash
-go get github.com/gchaincl/sqlhooks
-go get gopkg.in/gchaincl/sqlhooks.v1
+go get github.com/qustavo/sqlhooks
+go get gopkg.in/qustavo/sqlhooks.v1
 ```
 
-# Usage [![GoDoc](https://godoc.org/github.com/gchaincl/dotsql?status.svg)](https://godoc.org/github.com/gchaincl/sqlhooks)
+# Usage [![GoDoc](https://godoc.org/github.com/qustavo/dotsql?status.svg)](https://godoc.org/github.com/qustavo/sqlhooks)
 
 ```go
 // This example shows how to instrument sql queries in order to display the time that they consume
@@ -29,7 +29,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gchaincl/sqlhooks/v2"
+	"github.com/qustavo/sqlhooks/v2"
 	"github.com/mattn/go-sqlite3"
 )
 
@@ -80,5 +80,5 @@ Output should look like:
  BenchmarkPostgres/Without_Hooks-4                  10000            125718 ns/op             649 B/op         17 allocs/op
  BenchmarkPostgres/With_Hooks-4                      5000            354831 ns/op            1122 B/op         27 allocs/op
  PASS
- ok      github.com/gchaincl/sqlhooks    11.713s
+ ok      github.com/qustavo/sqlhooks    11.713s
  ```
