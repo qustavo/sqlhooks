@@ -1,4 +1,7 @@
-# sqlhooks [![Build Status](CI)](https://github.com/qustavo/sqlhooks/actions/workflows/test.yml/badge.svg) [![Coverage Status](https://coveralls.io/repos/github/qustavo/sqlhooks/badge.svg?branch=master)](https://coveralls.io/github/qustavo/sqlhooks?branch=master) [![Go Report Card](https://goreportcard.com/badge/github.com/qustavo/sqlhooks)](https://goreportcard.com/report/github.com/qustavo/sqlhooks)
+# sqlhooks
+![Build Status](https://github.com/qustavo/sqlhooks/actions/workflows/test.yml/badge.svg)
+[![Coverage Status](https://coveralls.io/repos/github/qustavo/sqlhooks/badge.svg?branch=master)](https://coveralls.io/github/qustavo/sqlhooks?branch=master)
+[![Go Report Card](https://goreportcard.com/badge/github.com/qustavo/sqlhooks)](https://goreportcard.com/report/github.com/qustavo/sqlhooks)
 
 Attach hooks to any database/sql driver.
 
