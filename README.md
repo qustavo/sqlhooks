@@ -1,4 +1,4 @@
-# sqlhooks [![Build Status](https://travis-ci.org/qustavo/sqlhooks.svg)](https://travis-ci.org/qustavo/sqlhooks) [![Coverage Status](https://coveralls.io/repos/github/qustavo/sqlhooks/badge.svg?branch=master)](https://coveralls.io/github/qustavo/sqlhooks?branch=master) [![Go Report Card](https://goreportcard.com/badge/github.com/qustavo/sqlhooks)](https://goreportcard.com/report/github.com/qustavo/sqlhooks)
+# sqlhooks [![Build Status](CI)](https://github.com/qustavo/sqlhooks/actions/workflows/test.yml/badge.svg) [![Coverage Status](https://coveralls.io/repos/github/qustavo/sqlhooks/badge.svg?branch=master)](https://coveralls.io/github/qustavo/sqlhooks?branch=master) [![Go Report Card](https://goreportcard.com/badge/github.com/qustavo/sqlhooks)](https://goreportcard.com/report/github.com/qustavo/sqlhooks)
 
 Attach hooks to any database/sql driver.
 
@@ -8,7 +8,7 @@ The purpose of sqlhooks is to provide a way to instrument your sql statements, m
 ```bash
 go get github.com/qustavo/sqlhooks/v2
 ```
-Requires Go >= 1.8.x
+Requires Go >= 1.14.x
 
 ## Breaking changes
 `V2` isn't backward compatible with previous versions, if you want to fetch old versions, you can use go modules or get them from [gopkg.in](http://gopkg.in/)
