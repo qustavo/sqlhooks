@@ -1,0 +1,8 @@
+linters-settings:
+  staticcheck:
+    checks: ["all", "-SA1019"]
+issues:
+  exclude-rules:
+    - path: example_test.go
+      linters:
+        - errcheck
