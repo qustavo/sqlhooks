@@ -109,7 +109,8 @@ func (s *suite) TestHooksExecution(t *testing.T, query string, args ...interface
 		assert.False(t, before, "Before Hook run before execution: "+query)
 		assert.False(t, after, "After Hook run before execution:  "+query)
 
-		stmt.Query(args...)
+		_, err = stmt.Query(args...)
+		require.NoError(t, err)
 		assert.True(t, before, "Before Hook did not run for query: "+query)
 		assert.True(t, after, "After Hook did not run for query:  "+query)
 	})
@@ -125,7 +126,7 @@ func (s *suite) testHooksArguments(t *testing.T, query string, args ...interface
 	s.hooks.before = hook
 	s.hooks.after = hook
 
-	ctx := context.WithValue(context.Background(), "key", "val")
+	ctx := context.WithValue(context.Background(), "key", "val") //nolint:staticcheck
 	{
 		_, err := s.db.QueryContext(ctx, query, args...)
 		require.NoError(t, err)
@@ -175,7 +176,8 @@ func (s *suite) testErrHookHook(t *testing.T, query string, args ...interface{})
 		return err
 	}
 
-	s.db.Query(query)
+	_, err := s.db.Query(query)
+	require.Error(t, err)
 }
 
 func (s *suite) TestErrHookHook(t *testing.T, query string, args ...interface{}) {

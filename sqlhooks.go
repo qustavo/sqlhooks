@@ -153,7 +153,7 @@ func (conn *ExecerContext) ExecContext(ctx context.Context, query string, args [
 		return results, handlerErr(ctx, conn.hooks, err, query, list...)
 	}
 
-	if ctx, err = conn.hooks.After(ctx, query, list...); err != nil {
+	if _, err := conn.hooks.After(ctx, query, list...); err != nil {
 		return nil, err
 	}
 
@@ -215,7 +215,7 @@ func (conn *QueryerContext) QueryContext(ctx context.Context, query string, args
 		return results, handlerErr(ctx, conn.hooks, err, query, list...)
 	}
 
-	if ctx, err = conn.hooks.After(ctx, query, list...); err != nil {
+	if _, err := conn.hooks.After(ctx, query, list...); err != nil {
 		return nil, err
 	}
 
@@ -278,7 +278,7 @@ func (stmt *Stmt) ExecContext(ctx context.Context, args []driver.NamedValue) (dr
 		return results, handlerErr(ctx, stmt.hooks, err, stmt.query, list...)
 	}
 
-	if ctx, err = stmt.hooks.After(ctx, stmt.query, list...); err != nil {
+	if _, err := stmt.hooks.After(ctx, stmt.query, list...); err != nil {
 		return nil, err
 	}
 
@@ -312,7 +312,7 @@ func (stmt *Stmt) QueryContext(ctx context.Context, args []driver.NamedValue) (d
 		return rows, handlerErr(ctx, stmt.hooks, err, stmt.query, list...)
 	}
 
-	if ctx, err = stmt.hooks.After(ctx, stmt.query, list...); err != nil {
+	if _, err := stmt.hooks.After(ctx, stmt.query, list...); err != nil {
 		return nil, err
 	}
 
