@@ -34,7 +34,7 @@ func TestSQLite3(t *testing.T) {
 	s.TestErrHookHook(t, "SELECT * FROM users WHERE id = $2", "INVALID_ARGS")
 
 	t.Run("DBWorks", func(t *testing.T) {
-		s.hooks.noop()
+		s.hooks.reset()
 		if _, err := s.db.Exec("DELETE FROM users"); err != nil {
 			t.Fatal(err)
 		}
