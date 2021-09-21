@@ -19,12 +19,22 @@ type testHooks struct {
 	onError ErrorHook
 }
 
-func (h *testHooks) noop() {
-	noop := func(ctx context.Context, query string, args ...interface{}) (context.Context, error) {
+func newTestHooks() *testHooks {
+	th := &testHooks{}
+	th.reset()
+	return th
+}
+
+func (h *testHooks) reset() {
+	noop := func(ctx context.Context, _ string, _ ...interface{}) (context.Context, error) {
 		return ctx, nil
 	}
 
-	h.before, h.after = noop, noop
+	noopErr := func(_ context.Context, err error, _ string, _ ...interface{}) error {
+		return err
+	}
+
+	h.before, h.after, h.onError = noop, noop, noopErr
 }
 
 func (h *testHooks) Before(ctx context.Context, query string, args ...interface{}) (context.Context, error) {
@@ -45,7 +55,8 @@ type suite struct {
 }
 
 func newSuite(t *testing.T, driver driver.Driver, dsn string) *suite {
-	hooks := &testHooks{}
+	hooks := newTestHooks()
+
 	driverName := fmt.Sprintf("sqlhooks-%s", time.Now().String())
 	sql.Register(driverName, Wrap(driver, hooks))
 

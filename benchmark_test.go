@@ -13,7 +13,7 @@ import (
 
 func init() {
 	hooks := &testHooks{}
-	hooks.noop()
+	hooks.reset()
 
 	sql.Register("sqlite3-benchmark", Wrap(&sqlite3.SQLiteDriver{}, hooks))
 	sql.Register("mysql-benchmark", Wrap(&mysql.MySQLDriver{}, hooks))
