@@ -48,13 +48,16 @@ func (drv *Driver) Open(name string) (driver.Conn, error) {
 	if err != nil {
 		return conn, err
 	}
+	return wrapConn(conn, drv.hooks)
+}
 
+func wrapConn(conn driver.Conn, hooks Hooks) (driver.Conn, error) {
 	// Drivers that don't implement driver.ConnBeginTx are not supported.
 	if _, ok := conn.(driver.ConnBeginTx); !ok {
 		return nil, errors.New("driver must implement driver.ConnBeginTx")
 	}
 
-	wrapped := &Conn{conn, drv.hooks}
+	wrapped := &Conn{conn, hooks}
 	if isExecer(conn) && isQueryer(conn) && isSessionResetter(conn) {
 		return &ExecerQueryerContextWithSessionResetter{wrapped,
 			&ExecerContext{wrapped}, &QueryerContext{wrapped},
@@ -72,6 +75,49 @@ func (drv *Driver) Open(name string) (driver.Conn, error) {
 		return &QueryerContext{wrapped}, nil
 	}
 	return wrapped, nil
+}
+
+// borrowed from https://github.com/golang/go/blob/d0dd26a88c019d54f22463daae81e785f5867565/src/database/sql/sql.go#L755-L766
+type dsnConnector struct {
+	dsn    string
+	driver driver.Driver
+}
+
+func (t dsnConnector) Connect(_ context.Context) (driver.Conn, error) {
+	return t.driver.Open(t.dsn)
+}
+
+func (t dsnConnector) Driver() driver.Driver {
+	return t.driver
+}
+
+func (drv *Driver) OpenConnector(name string) (driver.Connector, error) {
+	if driverCtx, ok := drv.Driver.(driver.DriverContext); ok {
+		connector, err := driverCtx.OpenConnector(name)
+		if err != nil {
+			return nil, err
+		}
+		return &Connector{connector, drv.hooks}, nil
+	}
+	return &Connector{dsnConnector{dsn: name, driver: drv.Driver}, drv.hooks}, nil
+}
+
+// Driver implements a database/sql/driver.Driver
+type Connector struct {
+	driver.Connector
+	hooks Hooks
+}
+
+func (connector Connector) Connect(ctx context.Context) (driver.Conn, error) {
+	conn, err := connector.Connector.Connect(ctx)
+	if err != nil {
+		return conn, err
+	}
+	return wrapConn(conn, connector.hooks)
+}
+
+func (connector Connector) Driver() driver.Driver {
+	return &Driver{connector.Connector.Driver(), connector.hooks}
 }
 
 // Conn implements a database/sql.driver.Conn
