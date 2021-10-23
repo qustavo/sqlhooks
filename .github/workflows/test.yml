@@ -66,5 +66,5 @@ jobs:
       env:
         SQLHOOKS_MYSQL_DSN: "test:test@/sqlhooks?interpolateParams=true"
         SQLHOOKS_POSTGRES_DSN: "postgres://postgres:test@localhost/sqlhooks?sslmode=disable"
-      run: go test ./... -v -race
+      run: go test ./... -v -race --covermode=atomic --coverprofile=coverage.out
 
