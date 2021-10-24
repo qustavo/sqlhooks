@@ -64,7 +64,7 @@ jobs:
         SQLHOOKS_POSTGRES_DSN: "postgres://postgres:test@localhost/sqlhooks?sslmode=disable"
       run: go test -race -covermode atomic -coverprofile=covprofile ./...
     - name: Install goveralls
-      run: go install github.com/mattn/goveralls@v0.0.11
+      run: go get github.com/mattn/goveralls@v0.0.11
     - name: Send coverage
       env:
         COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
