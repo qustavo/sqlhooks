@@ -1,0 +1,76 @@
+name: "test"
+on:
+  push:
+    branches:
+      - '*'
+  pull_request:
+jobs:
+  test:
+    name: "Run unit tests"
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        go-version: ["1.15.x", "1.16.x", "1.17.x"]
+    runs-on: ${{ matrix.os }}
+
+    services:
+      mysql:
+        image: mysql
+        env:
+          MYSQL_USER: test
+          MYSQL_PASSWORD: test
+          MYSQL_DATABASE: sqlhooks
+          MYSQL_ALLOW_EMPTY_PASSWORD: true
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin -v ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: sqlhooks
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Install Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Checkout code
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 1
+
+    - uses: actions/cache@v2
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Test
+      env:
+        SQLHOOKS_MYSQL_DSN: "test:test@/sqlhooks?interpolateParams=true"
+        SQLHOOKS_POSTGRES_DSN: "postgres://postgres:test@localhost/sqlhooks?sslmode=disable"
+      run: go test ./... -v -race -covermode=atomic -coverprofile=coverage.out
+
+    - name: Coveralls
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path-to-lcov: coverage.out
+
