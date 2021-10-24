@@ -1,11 +1,5 @@
 name: "test"
-on:
-  push:
-    branches:
-      - '*'
-  pull_request:
-    branches:
-      - '*'
+on: push
 jobs:
   test:
     name: "Run unit tests"
