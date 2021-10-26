@@ -2,7 +2,7 @@ name: "test"
 on: ["push","pull_request"]
 jobs:
   test:
-    name: "Test with Coverage"
+    name: "Run unit tests"
     strategy:
       matrix:
         os: [ubuntu-latest]
@@ -58,7 +58,7 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-go-
 
-    - name: coverall
+    - name: Test
       env:
         SQLHOOKS_MYSQL_DSN: "test:test@/sqlhooks?interpolateParams=true"
         SQLHOOKS_POSTGRES_DSN: "postgres://postgres:test@localhost/sqlhooks?sslmode=disable"

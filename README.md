@@ -1,7 +1,7 @@
 # sqlhooks
 ![Build Status](https://github.com/qustavo/sqlhooks/actions/workflows/test.yml/badge.svg)
-[![Coverage Status](https://coveralls.io/repos/github/qustavo/sqlhooks/badge.svg?branch=master)](https://coveralls.io/github/qustavo/sqlhooks?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/qustavo/sqlhooks)](https://goreportcard.com/report/github.com/qustavo/sqlhooks)
+[![Coverage Status](https://coveralls.io/repos/github/qustavo/sqlhooks/badge.svg?branch=master)](https://coveralls.io/github/qustavo/sqlhooks?branch=master)
 
 Attach hooks to any database/sql driver.
 
@@ -84,4 +84,4 @@ Output should look like:
  BenchmarkPostgres/With_Hooks-4                      5000            354831 ns/op            1122 B/op         27 allocs/op
  PASS
  ok      github.com/qustavo/sqlhooks    11.713s
- ```
+```
