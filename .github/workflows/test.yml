@@ -1,9 +1,5 @@
 name: "test"
-on:
-  push:
-    branches:
-      - master
-  pull_request:
+on: ["push","pull_request"]
 jobs:
   test:
     name: "Run unit tests"
@@ -66,5 +62,10 @@ jobs:
       env:
         SQLHOOKS_MYSQL_DSN: "test:test@/sqlhooks?interpolateParams=true"
         SQLHOOKS_POSTGRES_DSN: "postgres://postgres:test@localhost/sqlhooks?sslmode=disable"
-      run: go test ./... -v -race
-
+      run: go test -race -covermode atomic -coverprofile=covprofile ./...
+    - name: Install goveralls
+      run: go get github.com/mattn/goveralls@v0.0.11
+    - name: Send coverage
+      env:
+        COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: goveralls -coverprofile=covprofile -service=github
