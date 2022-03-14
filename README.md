@@ -76,12 +76,16 @@ Output should look like:
 # Benchmarks
 ```
  go test -bench=. -benchmem
- BenchmarkSQLite3/Without_Hooks-4                  200000              8572 ns/op             627 B/op         16 allocs/op
- BenchmarkSQLite3/With_Hooks-4                     200000             10231 ns/op             738 B/op         18 allocs/op
- BenchmarkMySQL/Without_Hooks-4                     10000            108421 ns/op             437 B/op         10 allocs/op
- BenchmarkMySQL/With_Hooks-4                        10000            226085 ns/op             597 B/op         13 allocs/op
- BenchmarkPostgres/Without_Hooks-4                  10000            125718 ns/op             649 B/op         17 allocs/op
- BenchmarkPostgres/With_Hooks-4                      5000            354831 ns/op            1122 B/op         27 allocs/op
+ goos: linux
+ goarch: amd64
+ pkg: github.com/qustavo/sqlhooks/v2
+ cpu: Intel(R) Xeon(R) W-10885M CPU @ 2.40GHz
+ BenchmarkSQLite3/Without_Hooks-16				   191196			   6163 ns/op			  456 B/op		   14 allocs/op
+ BenchmarkSQLite3/With_Hooks-16					   189997			   6329 ns/op			  456 B/op		   14 allocs/op
+ BenchmarkMySQL/Without_Hooks-16					13278			  83462 ns/op			  309 B/op			7 allocs/op
+ BenchmarkMySQL/With_Hooks-16						13460			  87331 ns/op			  309 B/op			7 allocs/op
+ BenchmarkPostgres/Without_Hooks-16					13016			  91421 ns/op			  401 B/op		   10 allocs/op
+ BenchmarkPostgres/With_Hooks-16					12339			  94033 ns/op			  401 B/op		   10 allocs/op
  PASS
- ok      github.com/qustavo/sqlhooks    11.713s
+ ok      github.com/qustavo/sqlhooks/v2  10.294s
 ```
