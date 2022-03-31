@@ -80,12 +80,12 @@ Output should look like:
  goarch: amd64
  pkg: github.com/qustavo/sqlhooks/v2
  cpu: Intel(R) Xeon(R) W-10885M CPU @ 2.40GHz
- BenchmarkSQLite3/Without_Hooks-16				   191196			   6163 ns/op			  456 B/op		   14 allocs/op
- BenchmarkSQLite3/With_Hooks-16					   189997			   6329 ns/op			  456 B/op		   14 allocs/op
- BenchmarkMySQL/Without_Hooks-16					13278			  83462 ns/op			  309 B/op			7 allocs/op
- BenchmarkMySQL/With_Hooks-16						13460			  87331 ns/op			  309 B/op			7 allocs/op
- BenchmarkPostgres/Without_Hooks-16					13016			  91421 ns/op			  401 B/op		   10 allocs/op
- BenchmarkPostgres/With_Hooks-16					12339			  94033 ns/op			  401 B/op		   10 allocs/op
+ BenchmarkSQLite3/Without_Hooks-16                 191196              6163 ns/op             456 B/op         14 allocs/op
+ BenchmarkSQLite3/With_Hooks-16                    189997              6329 ns/op             456 B/op         14 allocs/op
+ BenchmarkMySQL/Without_Hooks-16                    13278             83462 ns/op             309 B/op          7 allocs/op
+ BenchmarkMySQL/With_Hooks-16                       13460             87331 ns/op             309 B/op          7 allocs/op
+ BenchmarkPostgres/Without_Hooks-16                 13016             91421 ns/op             401 B/op         10 allocs/op
+ BenchmarkPostgres/With_Hooks-16                    12339             94033 ns/op             401 B/op         10 allocs/op
  PASS
  ok      github.com/qustavo/sqlhooks/v2  10.294s
 ```
