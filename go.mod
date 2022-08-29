@@ -8,5 +8,5 @@ require (
 	github.com/mattn/go-sqlite3 v1.10.0
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/stretchr/testify v1.4.0
-	golang.org/x/tools v0.1.7 // indirect
+	google.golang.org/appengine v1.6.7 // indirect
 )
